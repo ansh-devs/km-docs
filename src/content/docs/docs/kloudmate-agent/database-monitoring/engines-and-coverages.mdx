@@ -1,53 +1,96 @@
 ---
 title: "Engines and coverages"
-description: "The database engines the KloudMate agent monitors and the metrics, query performance, locks, and logs available for each engine."
+description: "Every database engine the KloudMate agent monitors, the coverages you can turn on for each, and what each coverage needs on the database."
 sidebar:
   order: 2
 ---
 
 import { LinkCard, CardGrid } from '@astrojs/starlight/components';
 
-You choose what to monitor for a database as a set of **coverages**. This page lists the engines the agent monitors and the coverages available for each.
+A **coverage** is one area of data the agent collects from a database, such as standard metrics, query performance, or a schema catalog. You pick coverages per database in the wizard. This page lists the coverages for each engine, what they collect, what they need, and how to set up the database for them.
 
-## Coverage types
+## How coverages work
 
-- **Standard metrics:** the database's health and capacity metrics, such as connections, cache hit ratio, replication lag, buffers, and table and index statistics. You can collect a basic set or a full set.
-- **Query performance:** statistics for the most expensive queries across all clients, so you can find slow and heavy queries.
-- **Locks:** lock and blocking information.
-- **Query logs:** query activity captured as log records.
-- **Server and slow logs:** the database's own log entries, including slow queries.
+- **Standard metrics** is always on. Check **Collect all optional metrics** to collect the receiver's full metric set.
+- **Every other coverage is off** until you turn it on.
+- **Setup steps** appear in the wizard when you turn on a coverage that needs them, such as a grant or an extension. The wizard doesn't test them when you save, so run them first. A missing grant shows up as an empty tab in the Databases module and as errors in the agent log.
+- **Passwords** go in the wizard's **Password** field, or in the environment variable it names. See [Database credentials](../credentials/).
+- **Log file coverages** read files on the database host. They're available on a virtual machine and hidden on Kubernetes.
+- **The coverage list comes from the agent**, so an older agent offers fewer coverages.
 
-## Engine and coverage matrix
+## Engine support at a glance
 
-| Engine | Standard metrics | Query performance | Locks | Query logs | Logs |
-|---|---|---|---|---|---|
-| PostgreSQL | Yes | Yes | Yes | No | Server logs |
-| MySQL | Yes | Yes | No | No | Slow log |
-| SQL Server | Yes | Yes | No | Yes | No |
-| Oracle | Yes | Yes | No | Yes | No |
-| MongoDB | Yes | No | No | No | No |
-| MongoDB Atlas | Yes | No | No | No | No |
-| Redis | Yes | No | No | No | No |
-| Elasticsearch | Yes | No | No | No | No |
-| ClickHouse | Yes | No | No | No | No |
-| SAP HANA | Yes | No | No | No | No |
-| Snowflake | Yes | Yes | No | No | No |
+| Engine | Metrics | Query performance | Schema | Topology | Logs | Also available |
+|---|---|---|---|---|---|---|
+| [PostgreSQL](#postgresql) | Yes | Yes | Yes | Yes | Server logs | Locks, vacuum, bloat, replication health |
+| [MySQL and MariaDB](#mysql-and-mariadb) | Yes | Yes | Yes | Yes | Slow query log | Locks |
+| [SQL Server](#sql-server) | Yes | Yes | Yes | Availability groups | Query log | Agent jobs, backups, index health, memory, sessions, TempDB, waits |
+| [Oracle](#oracle) | Yes | Yes | Yes | CDB/PDB, RAC, Data Guard | Query log | AWR, RMAN backups, locks |
+| [MongoDB](#mongodb) | Yes | Yes | — | — | — | — |
+| [MongoDB Atlas](#mongodb-atlas) | Yes | — | — | — | Host, audit, and access logs | — |
+| [Redis](#redis) | Yes | — | — | — | — | — |
+| [ClickHouse](#clickhouse) | Yes | — | — | Yes | Query log | Instance info and core metrics |
+| [Elasticsearch](#elasticsearch) | Yes | — | — | — | — | — |
+| [SAP HANA](#sap-hana) | Yes | — | — | — | — | — |
+| [Snowflake](#snowflake) | Yes | — | — | — | Top queries | — |
 
-:::note
-Database log coverages are available on a virtual machine. On Kubernetes, the agent collects database metrics and query coverages. See [Database monitoring on Kubernetes](../on-kubernetes/).
-:::
+## PostgreSQL
 
-## Setup steps
+Every coverage connects as a monitoring user with the `pg_monitor` role.
 
-Some coverages need a one-time setup step on the database. The wizard shows you the step when you select that coverage. For example:
+| Coverage | Collects | Needs |
+|---|---|---|
+| **Standard metrics** | Connections, cache hit ratio, replication lag, WAL and background writer, buffers, table and index statistics | `pg_monitor` |
+| **Instance info** | Version, role, and key settings | — |
+| **Query performance (samples + top queries)** | Top queries from `pg_stat_statements`, live samples from `pg_stat_activity`, and optionally execution plans | `pg_stat_statements` in `shared_preload_libraries` (restart), then `CREATE EXTENSION` in each monitored database. Plans also need `pg_read_all_data` and an **Advanced** override. |
+| **Locks & blocking** | Lock counts by mode and blocked sessions | — |
+| **Schema catalog** | Tables, columns, indexes, and constraints in the schemas you list | — |
+| **Replication topology & lag** | Primary or standby role, standby roster, lag and backlog per link | Turn on for the primary |
+| **Replication health (slots, WAL retention)** | Replication slot state and retained WAL | — |
+| **Vacuum health & wraparound** | Wraparound headroom and per-table vacuum recency | — |
+| **Table bloat & vacuum blockers** | Dead tuples per table and sessions blocking vacuum | — |
+| **Server logs (JSON, PostgreSQL 15+)** | Slow queries and errors from `jsonlog` files | `log_destination = 'jsonlog'`. VM only. |
+| **Logs (stderr, PostgreSQL &lt;15)** | The same, from stderr log files | `log_destination = 'stderr'`. VM only. |
 
-- PostgreSQL query performance needs the `pg_stat_statements` extension enabled, which needs a PostgreSQL restart.
-- Query performance and query-log coverages need the monitoring user to have the right grants, such as `GRANT pg_monitor` on PostgreSQL or the equivalent view permissions on SQL Server and Oracle.
-- Log coverages may need a log setting turned on, such as the MySQL slow query log.
+Only one of the two log coverages can be on. **Schema catalog**, **Table bloat**, and per-table vacuum stats cover the database set in the **Database** field.
 
-If a prerequisite is missing, the agent reports it and the other coverages keep working.
+### Set up the database
 
-### Keep a `postgres` database on managed PostgreSQL
+#### Create a monitoring user
+
+Every PostgreSQL coverage connects as a monitoring user with the built-in `pg_monitor` role:
+
+```sql
+CREATE USER kmmonitor WITH PASSWORD 'YOUR_PASSWORD';
+GRANT pg_monitor TO kmmonitor;
+```
+
+#### Enable pg_stat_statements
+
+**Query performance** reads `pg_stat_statements`:
+
+1. Add `pg_stat_statements` to `shared_preload_libraries` in `postgresql.conf`. This needs a PostgreSQL restart.
+2. In each database you monitor, create the extension:
+
+   ```sql
+   CREATE EXTENSION pg_stat_statements;
+   ```
+
+`pg_stat_statements.max` (default `5000`) caps how many distinct statements PostgreSQL tracks. If your workload has many distinct statements, raise it. Evicted statements show up as gaps in **Top queries**.
+
+#### Enable server logs
+
+For **Server logs (JSON, PostgreSQL 15+)**, set these in `postgresql.conf`, then run `SELECT pg_reload_conf();`:
+
+```ini
+logging_collector = on
+log_destination = 'jsonlog'
+log_min_duration_statement = 250
+```
+
+For **Logs (stderr, PostgreSQL &lt;15)**, use `log_destination = 'stderr'` instead. Any `log_line_prefix` works. In both cases, set **Log file glob** in the wizard to where PostgreSQL writes its logs. `log_min_duration_statement` is the slow-query threshold in milliseconds.
+
+#### Keep a `postgres` database on managed PostgreSQL
 
 The agent connects to the database named `postgres` to read server-wide statistics and query performance. These statistics cover every database on the server, so the data you see still comes from your application databases.
 
@@ -64,14 +107,506 @@ GRANT CONNECT ON DATABASE postgres TO kmmonitor;
 
 Replace `kmmonitor` with your monitoring user. KloudMate doesn't write anything to this database. You don't need to restart the agent; data appears on the next collection.
 
-## Filtering database logs
+## MySQL and MariaDB
 
-Database logs carry a `km.db.coverage` attribute set to the coverage they came from, such as `query-performance`, `server-logs`, or `slow-log`. You can filter database logs by this attribute in Log Explorer.
+MariaDB uses the MySQL coverages.
+
+| Coverage | Collects | Needs |
+|---|---|---|
+| **Standard metrics** | Buffer pool, commands, handlers, InnoDB, connections, replication | `PROCESS`, `REPLICATION CLIENT`, `SELECT` |
+| **Instance info** | Version, flavor, read-only state, binlog, key settings, and `max_connections` | — |
+| **Query performance (samples + top queries)** | Samples and top queries from `performance_schema`, and optionally execution plans | `performance_schema=ON`, larger digest and SQL text lengths, `SELECT` on `performance_schema` |
+| **Locks & blocking** | Lock counts and blocked transactions | `performance_schema=ON`, `SELECT` on `performance_schema` |
+| **Schema catalog** | Tables, columns, indexes, and constraints | **Schemas (databases) to scan** is required |
+| **Replication topology & lag** | Source or replica role, Group Replication roster, applier lag | `performance_schema=ON`, `REPLICATION CLIENT` |
+| **Slow query log** | Slow queries with query time, lock time, and rows | `slow_query_log=ON`. VM only. |
+
+### Set up the database
+
+#### Create a monitoring user
+
+Every MySQL coverage connects as one monitoring user:
+
+```sql
+CREATE USER 'kmmonitor'@'%' IDENTIFIED BY 'YOUR_PASSWORD';
+GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'kmmonitor'@'%';
+```
+
+:::caution[Use one host part for the user]
+A MySQL account is a user name plus a host part, and a `GRANT` to an account that doesn't exist fails on MySQL 8. The wizard's steps create the user as `'kmmonitor'@'localhost'` but grant later privileges to `'kmmonitor'@'%'`. Pick one host part and use it in every statement: `'%'` when the agent connects over the network, as in the examples on this page.
+:::
+
+#### Enable performance_schema
+
+**Query performance**, **Locks & blocking**, and **Replication topology & lag** read `performance_schema`. **Standard metrics** also reads connection counts and uptime from it.
+
+1. Add these settings under `[mysqld]` in `my.cnf`, then restart MySQL. None of them can be changed at runtime.
+
+   ```ini
+   [mysqld]
+   performance_schema = ON
+   performance_schema_max_digest_length = 4096
+   performance_schema_max_sql_text_length = 4096
+   ```
+
+2. Give the monitoring user read access to it:
+
+   ```sql
+   GRANT SELECT ON performance_schema.* TO 'kmmonitor'@'%';
+   ```
+
+The two length settings stop long statements from being cut off in **Top queries** and **Running queries**.
+
+:::note[MariaDB]
+MariaDB ships with `performance_schema` off. Until you turn it on, the query tabs stay empty and connection counts and uptime are missing, even though the instance still shows as available.
+:::
+
+#### Turn on the slow query log
+
+For **Slow query log**, turn on the log and find where MySQL writes it:
+
+```sql
+SET GLOBAL slow_query_log = ON;
+SET GLOBAL long_query_time = 1;
+SHOW VARIABLES LIKE 'slow_query_log_file';
+```
+
+`long_query_time` is the slow-query threshold in seconds. `SET GLOBAL` lasts until the next restart, so add the same settings to `my.cnf` to keep them. In the wizard, make sure **Slow log path** matches the file the last statement returns. The default glob, `/var/{log,lib}/mysql/*slow*.log`, covers the usual locations.
+
+## SQL Server
+
+Most coverages need `VIEW SERVER STATE` on the monitoring login.
+
+| Coverage | Collects | Needs |
+|---|---|---|
+| **Standard metrics** | Connections, batches, buffer cache, page life expectancy, locks, transactions, wait stats | `VIEW SERVER STATE` |
+| **Instance info** | Version, edition, Always On state, CPUs, memory settings | `VIEW SERVER STATE` |
+| **Query performance (samples + top queries)** | Samples and top queries from the DMVs, and optionally XML showplans | `VIEW SERVER STATE` (or `VIEW SERVER PERFORMANCE STATE` on 2022+), `VIEW ANY DATABASE` |
+| **Query log (active + top queries)** | Active queries and the most CPU-expensive statements, as log records | `VIEW SERVER STATE` |
+| **Schema catalog** | Tables, columns, indexes, and foreign keys in the connected database | — |
+| **Replication topology & lag** | Availability group roles, replica roster, commit lag, send and redo backlog | `VIEW SERVER STATE`, `VIEW ANY DEFINITION` |
+| **Agent jobs** | SQL Server Agent job runs, outcomes, and messages | A user in `msdb` with `SELECT` on `sysjobs`, `sysjobhistory`, and `sysjobactivity`, and `EXECUTE` on `agent_datetime`. Not on Azure SQL Database. |
+| **Backup tracking** | Time since each database's last full, differential, and log backup | `SELECT` on `msdb.dbo.backupset` and `backupmediafamily` |
+| **Index health** | Missing index suggestions, index usage, fragmentation | `VIEW SERVER STATE` |
+| **Memory & plan cache** | Memory clerks, plan cache by type, memory grants | `VIEW SERVER STATE` |
+| **Session breakdown** | Sessions by login, application, and status; request states | `VIEW SERVER STATE` |
+| **TempDB usage** | TempDB space by consumer and file | `VIEW SERVER STATE` |
+| **Waits, scheduler & file I/O** | Top wait types, scheduler queues, per-file I/O latency | `VIEW SERVER STATE` |
+
+### Set up the database
+
+The wizard's setup steps don't include creating the login, so start there.
+
+#### Create a monitoring login
+
+Every SQL Server coverage connects as a monitoring login. Create it and give it `VIEW SERVER STATE`, which Standard metrics already needs to read connections and uptime even though the wizard only lists the grant for other coverages:
+
+```sql
+CREATE LOGIN kmmonitor WITH PASSWORD = 'YOUR_PASSWORD';
+GRANT VIEW SERVER STATE TO kmmonitor;
+```
+
+`VIEW SERVER STATE` also covers **Instance info**, **Waits, scheduler & file I/O**, **Session breakdown**, **Memory & plan cache**, **TempDB usage**, **Index health**, and **Query log**.
+
+#### Query performance
+
+**Query performance** also needs to see every database:
+
+```sql
+GRANT VIEW ANY DATABASE TO kmmonitor;
+```
+
+On SQL Server 2022 and later, the wizard offers `VIEW SERVER PERFORMANCE STATE` as the narrower alternative to `VIEW SERVER STATE` for this coverage.
+
+#### Grant access to msdb
+
+**Agent jobs** and **Backup tracking** read tables in `msdb`, which needs a database user for the login there. Create the user once, then add the grants for the coverages you use:
+
+```sql
+USE msdb;
+CREATE USER kmmonitor FOR LOGIN kmmonitor;
+
+-- Agent jobs
+GRANT SELECT ON dbo.sysjobs TO kmmonitor;
+GRANT SELECT ON dbo.sysjobhistory TO kmmonitor;
+GRANT SELECT ON dbo.sysjobactivity TO kmmonitor;
+GRANT EXECUTE ON dbo.agent_datetime TO kmmonitor;
+
+-- Backup tracking
+GRANT SELECT ON dbo.backupset TO kmmonitor;
+GRANT SELECT ON dbo.backupmediafamily TO kmmonitor;
+```
+
+#### Replication topology
+
+**Replication topology & lag** reads the `sys.dm_hadr_*` DMVs and the availability group catalog views:
+
+```sql
+GRANT VIEW ANY DEFINITION TO kmmonitor;
+```
+
+Without `VIEW ANY DEFINITION`, SQL Server returns no rows from the catalog views rather than an error, so the group looks like it has no members. Logins aren't synchronized across replicas, so create the login and grants on each replica you monitor.
+
+#### Schema catalog
+
+**Schema catalog** scans the database named in the wizard's **Database** field, which defaults to `master`. Set it to your application database, and set **Schemas to scan** (default `dbo`). The monitoring login needs a user in that database and permission to see its table definitions, for example through `VIEW ANY DEFINITION`.
+
+## Oracle
+
+Every coverage connects with the **Service name** you enter, which selects a PDB or the CDB root. Monitor the root and each PDB as separate databases with distinct instance names.
+
+| Coverage | Collects | Needs |
+|---|---|---|
+| **Standard metrics** | Sessions, tablespace usage, wait classes, executions, PGA and SGA, hard parses | `CREATE SESSION`, `SELECT_CATALOG_ROLE` |
+| **Instance info** | Version, open mode, Data Guard role, archive mode, sizing parameters | — |
+| **Query performance (samples + top queries)** | Samples, top queries, and session waits from `V$` views, and optionally execution plans | `SELECT` on `V$SQL`, `V$SQL_PLAN`, `V$SQL_PLAN_STATISTICS_ALL`, `V$SESSION`, `V$SESSION_EVENT`, `V$LOCK`, `V$CONTAINERS`, `DBA_OBJECTS`, `DBA_PROCEDURES` |
+| **Query log (active sessions)** | Active sessions and the SQL text they run | `SELECT` on `V$SESSION`, `V$SQL` |
+| **Schema catalog** | Tables, columns, indexes, and constraints for the owners you list | Oracle 12.2 or later. **Schemas (owners) to scan** is required. |
+| **Locks & blocking** | Lock counts and blocked sessions | `SELECT` on `V$LOCK`, `V$SESSION` |
+| **Container topology (CDB / PDB)** | Root or PDB role and the container roster | Turn on for the CDB root |
+| **RAC topology** | RAC instances and their status | `SELECT` on `V$DATABASE`, `GV$INSTANCE` |
+| **Data Guard topology & lag** | Primary and standbys, and apply lag | `SELECT` on `V$DATABASE`, `V$DATAGUARD_CONFIG`, `V$DATAGUARD_STATS` |
+| **Backup tracking (RMAN)** | Time since the last RMAN backup of each type | `SELECT` on `V$RMAN_BACKUP_JOB_DETAILS` |
+| **AWR load profile & instance efficiency** | Load profile and instance efficiency percentages | Diagnostics Pack |
+| **AWR time model & wait classes** | DB time breakdown and wait classes as average active sessions | Diagnostics Pack |
+| **AWR wait events, enqueues & services** | Named wait events, enqueues, and service time | Diagnostics Pack |
+| **AWR top SQL & plan history** | Top SQL by elapsed time with plan hash, per snapshot | Diagnostics Pack |
+| **AWR I/O & segment statistics** | I/O by function and tablespace, top segments | Diagnostics Pack |
+| **AWR active session history** | ASH activity by wait class, SQL, module, and object | Diagnostics Pack |
+
+:::caution
+The AWR coverages read `DBA_HIST_*` views, which require the Oracle Diagnostics Pack, an Enterprise Edition option. Reading them records Diagnostics Pack usage in `DBA_FEATURE_USAGE_STATISTICS`. Before you turn one on, check that the pack is enabled:
+
+```sql
+SELECT value FROM v$parameter WHERE name = 'control_management_pack_access';
+```
+
+`DIAGNOSTIC` or `DIAGNOSTIC+TUNING` means it's enabled. `NONE`, the Standard Edition default, means don't turn on AWR coverages. See [Agent jobs and AWR](../../../database-monitoring/agent-jobs-and-awr/) for what they show.
+:::
+
+### Set up the database
+
+#### Create a monitoring user
+
+Every Oracle coverage connects as a monitoring user with `CREATE SESSION` and `SELECT_CATALOG_ROLE`. Connect as `SYS`, or another user allowed to grant these, and run:
+
+```sql
+CREATE USER kmmonitor IDENTIFIED BY "YOUR_PASSWORD";
+GRANT CREATE SESSION TO kmmonitor;
+GRANT SELECT_CATALOG_ROLE TO kmmonitor;
+```
+
+`SELECT_CATALOG_ROLE` covers the dictionary and `V$` views the coverages read, including `V$SQLSTATS`, the `DBA_*` views behind **Schema catalog**, and the `DBA_HIST_*` views behind AWR. The wizard doesn't show this step, but every coverage depends on it.
+
+Use the same user in the wizard's **Monitoring user** field, and the same password in **Password** or in the environment variable it names. See [Database credentials](../credentials/).
+
+:::caution[Container databases]
+In a PDB, run the statements above while connected to that PDB. In the CDB root, Oracle only allows common users, whose names start with `C##`. To monitor the root, create a common user instead and use its name in **Monitoring user** and in every grant below:
+
+```sql
+CREATE USER C##KMMONITOR IDENTIFIED BY "YOUR_PASSWORD" CONTAINER=ALL;
+GRANT CREATE SESSION TO C##KMMONITOR CONTAINER=ALL;
+GRANT SELECT_CATALOG_ROLE TO C##KMMONITOR CONTAINER=ALL;
+```
+
+:::
+
+#### Grant access for specific coverages
+
+The wizard lists these object grants when you turn on the coverages that need them. They overlap with `SELECT_CATALOG_ROLE`, and they're what you need if your security policy grants individual views instead of the role. Oracle takes one object per `GRANT SELECT` statement.
+
+**Query performance:**
+
+```sql
+GRANT SELECT ON V_$SQL TO kmmonitor;
+GRANT SELECT ON V_$SQLSTATS TO kmmonitor;
+GRANT SELECT ON V_$SQL_PLAN TO kmmonitor;
+GRANT SELECT ON V_$SQL_PLAN_STATISTICS_ALL TO kmmonitor;
+GRANT SELECT ON V_$SESSION TO kmmonitor;
+GRANT SELECT ON V_$SESSION_EVENT TO kmmonitor;
+GRANT SELECT ON V_$LOCK TO kmmonitor;
+GRANT SELECT ON V_$CONTAINERS TO kmmonitor;
+GRANT SELECT ON DBA_OBJECTS TO kmmonitor;
+GRANT SELECT ON DBA_PROCEDURES TO kmmonitor;
+```
+
+**Backup tracking (RMAN):**
+
+```sql
+GRANT SELECT ON V_$RMAN_BACKUP_JOB_DETAILS TO kmmonitor;
+```
+
+**Data Guard topology & lag:**
+
+```sql
+GRANT SELECT ON V_$DATABASE TO kmmonitor;
+GRANT SELECT ON V_$DATAGUARD_CONFIG TO kmmonitor;
+GRANT SELECT ON V_$DATAGUARD_STATS TO kmmonitor;
+```
+
+**RAC topology:**
+
+```sql
+GRANT SELECT ON V_$DATABASE TO kmmonitor;
+GRANT SELECT ON GV_$INSTANCE TO kmmonitor;
+```
+
+**Locks & blocking:**
+
+```sql
+GRANT SELECT ON V_$LOCK TO kmmonitor;
+GRANT SELECT ON V_$SESSION TO kmmonitor;
+```
+
+**Query log (active sessions):**
+
+```sql
+GRANT SELECT ON V_$SESSION TO kmmonitor;
+GRANT SELECT ON V_$SQL TO kmmonitor;
+```
+
+**Instance info**, **Container topology**, **Schema catalog**, and the AWR coverages need nothing beyond `SELECT_CATALOG_ROLE`.
+
+## MongoDB
+
+| Coverage | Collects | Needs |
+|---|---|---|
+| **Standard metrics** | Operations, connections, memory, cache, document and collection stats, replication | Leave the user empty if the instance has no authentication |
+| **Query performance (samples + top queries)** | Live samples from `currentOp` and top slow queries from the profiler | The `clusterMonitor` role. Profiling level 1 on each monitored database is recommended. |
+
+Set **Disable TLS** for a self-hosted MongoDB without TLS. It's off by default, and without it the connection expects a verified certificate.
+
+### Set up the database
+
+#### Grant the clusterMonitor role
+
+The agent connects as the **Monitoring user** (default `kmmonitor`). Give that user the built-in `clusterMonitor` role. Run this in the database where the user is defined, which is usually `admin`:
+
+```javascript
+db.grantRolesToUser("kmmonitor", [{ role: "clusterMonitor", db: "admin" }])
+```
+
+If the user is defined in a database other than the one the agent connects to, set **Auth database** in the wizard. Leave **Monitoring user** empty if the instance has no authentication. For the password, see [Database credentials](../credentials/).
+
+#### Enable database profiling
+
+Top queries come from the database profiler. Turn it on in each database you want to monitor:
+
+```javascript
+db.setProfilingLevel(1)
+```
+
+Level `1` records operations slower than MongoDB's `slowms` threshold (100 ms by default). Without profiling, the agent reads slow operations from MongoDB's diagnostic log instead. That log keeps only about 1,024 recent entries, so on a busy server slow operations can rotate out before the agent reads them, and **Top queries** misses them.
+
+#### Connect with or without TLS
+
+**Disable TLS** is off by default, so the agent expects TLS and verifies the server certificate. For a self-hosted MongoDB with no TLS configured, turn on **Disable TLS**, or the connection fails. For a self-signed certificate, turn on **Skip certificate verification** instead.
+
+**Auth mechanism** can stay unset for username and password authentication. Set it only for certificate (`MONGODB-X509`), AWS IAM (`MONGODB-AWS`), or Kerberos (`GSSAPI`) authentication.
+
+## MongoDB Atlas
+
+Atlas is monitored through the Atlas Admin API, not a database connection.
+
+| Coverage | Collects | Needs |
+|---|---|---|
+| **MongoDB Atlas (cloud)** | Project, cluster, process, and disk metrics | An Atlas API key with the **Project Read Only** role, with the agent host's IP on the key's access list |
+| **Logs (host, audit, access)** | mongod, audit, and access logs for one project | **Atlas project name**. Audit logs also need database auditing enabled in the project. |
+
+The logs coverage uses the API, so it's also available on Kubernetes.
+
+### Set up Atlas
+
+#### Create an Atlas API key
+
+1. In Atlas, open **Project Settings → Access Manager → API Keys** and create an API key with the **Project Read Only** role.
+2. Add the public IP address of the host running the KloudMate Agent to the key's access list. Atlas rejects requests from any other address.
+3. Copy the public key and the private key. Atlas shows the private key only once.
+
+The **Logs** coverage uses the same key and role.
+
+#### Fill in the wizard
+
+- **Atlas public key:** the public part of the API key.
+- **Atlas private key:** by default, the wizard shows the environment variable the agent reads it from, such as `KM_SECRET_MONGODBATLAS_PRIVATE_KEY`. Set that variable on the agent host. See [Database credentials](../credentials/).
+- **Metric granularity:** how finely Atlas aggregates each measurement, as an ISO-8601 duration. The default `PT1M` is one minute.
+- **Atlas project name** (Logs only): the project to pull logs from. Logs are scoped to one project, unlike metrics.
+
+#### Collect audit logs
+
+**Collect audit logs** is off by default. Before you turn it on, enable auditing for the project in Atlas under **Project Settings → Advanced → Database Auditing**.
+
+## Redis
+
+| Coverage | Collects | Needs |
+|---|---|---|
+| **Standard metrics** | Commands, memory, keyspace, clients, replication | Nothing for an instance without authentication. Set **ACL username** only for a Redis 6+ ACL user. |
+
+### Connect to Redis
+
+Redis needs no grants or database-side setup. In the wizard, fill in:
+
+- **Endpoint:** `host:port` of the Redis server, such as `localhost:6379`.
+- **Password:** leave it empty if the server has no authentication. See [Database credentials](../credentials/).
+- **ACL username:** only for a Redis 6 or later ACL user. Leave it empty if the server uses `requirepass` alone.
+
+If the server uses TLS with a self-signed certificate, turn on **Skip certificate verification**. **Disable TLS** connects without TLS at all.
+
+## ClickHouse
+
+Standard metrics come from ClickHouse's Prometheus endpoint. The other coverages connect over SQL with their own host, port, and user.
+
+| Coverage | Collects | Needs |
+|---|---|---|
+| **Standard metrics (Prometheus endpoint)** | Memory, queries, merges, replication, parts | The `<prometheus>` endpoint enabled in `config.xml`, on port `9363` by default |
+| **Instance info & core metrics** | Version, uptime, connections, database size, query counters | `SELECT` on `system.metrics`, `system.events`, `system.parts`, `system.server_settings` |
+| **Query log (top queries by duration)** | Top queries from `system.query_log`, as log records | `SELECT` on `system.query_log` |
+| **Replication topology & lag** | Cluster roster and replication delay | `SELECT` on `system.clusters`, `system.replicas` |
+
+:::caution
+Turn on **Instance info & core metrics** for every ClickHouse instance. Without it, the instance doesn't appear in the Databases list.
+:::
+
+### Set up ClickHouse
+
+ClickHouse coverages use two separate connections. **Standard metrics** reads the Prometheus endpoint over HTTP. The other coverages run SQL against ClickHouse's native protocol port, with their own **Host**, **Port**, **Database**, **Monitoring user**, and **Password** fields.
+
+#### Expose the Prometheus endpoint
+
+In ClickHouse's `config.xml`, add a `<prometheus>` block:
+
+```xml
+<prometheus>
+    <endpoint>/metrics</endpoint>
+    <port>9363</port>
+    <metrics>true</metrics>
+    <events>true</events>
+    <asynchronous_metrics>true</asynchronous_metrics>
+</prometheus>
+```
+
+Keep `metrics`, `events`, and `asynchronous_metrics` all set to `true`, since the Metrics tab reads all three.
+
+In the wizard, set **Prometheus endpoint** to the host and port of this endpoint, such as `10.0.0.12:9363`. It's `localhost:9363` by default. If the endpoint is served over TLS, set **Scrape scheme** to `https`, and check **Skip certificate verification** for a self-signed certificate.
+
+#### Connect over SQL
+
+Set **Host** and **Port** to ClickHouse's native protocol interface, not the Prometheus port. **Port** defaults to `9000`, and **Monitoring user** defaults to `kmmonitor`.
+
+Grant the monitoring user read access to the system tables each coverage reads. The wizard shows the grants for the coverages you turn on. Replace `kmmonitor` if your user has a different name.
+
+**Instance info & core metrics:**
+
+```sql
+GRANT SELECT ON system.metrics TO kmmonitor;
+GRANT SELECT ON system.events TO kmmonitor;
+GRANT SELECT ON system.parts TO kmmonitor;
+GRANT SELECT ON system.server_settings TO kmmonitor;
+```
+
+**Replication topology & lag:**
+
+```sql
+GRANT SELECT ON system.clusters TO kmmonitor;
+GRANT SELECT ON system.replicas TO kmmonitor;
+```
+
+**Query log:**
+
+```sql
+GRANT SELECT ON system.query_log TO kmmonitor;
+```
+
+## Elasticsearch
+
+| Coverage | Collects | Needs |
+|---|---|---|
+| **Standard metrics** | Cluster health, node JVM, OS, and file system, indices, shards, thread pools, circuit breakers | Leave the user empty when security is disabled. Use an `https://` endpoint for TLS. |
+
+### Connect to the cluster
+
+1. Set **Endpoint** to the base URL of an Elasticsearch node, including the scheme and port, such as `http://10.0.0.20:9200`. The default is `http://localhost:9200`.
+2. If security is enabled on the cluster, enter a **Monitoring user** and **Password**. The user needs read access to the `_cluster/health` and `_nodes/stats` APIs. If security is disabled, leave **Monitoring user** empty.
+3. For a cluster that serves HTTPS, use an `https://` endpoint. Check **Skip certificate verification** if the node uses a self-signed certificate.
+
+One endpoint is enough for the whole cluster. Cluster health comes from the node you point at, and node statistics arrive as one series per node, which most panels add together into a cluster value.
+
+## SAP HANA
+
+| Coverage | Collects | Needs |
+|---|---|---|
+| **Standard metrics** | Connections, memory, CPU, disk, service and host status, transactions, volume I/O | A monitoring user on the SQL port (`30015` by default) |
+
+### Connect to SAP HANA
+
+1. Set **Endpoint** to the host and SQL port of the HANA database, such as `10.0.0.30:30015`. The default is `localhost:30015`. The SQL port depends on your instance number and whether you connect to a tenant database, so check it in your HANA system before you save.
+2. Enter a **Monitoring user** and **Password**. Both are required. The user needs read access to HANA's system monitoring views.
+3. Decide on TLS. **Disable TLS** is on by default, which matches a self-hosted HANA without TLS configured. Turn it off to connect over TLS. The server's certificate isn't verified.
+
+## Snowflake
+
+Snowflake is queried through `SNOWFLAKE.ACCOUNT_USAGE`, which lags real time and uses warehouse credits. The collection interval defaults to 300 seconds for that reason.
+
+| Coverage | Collects | Needs |
+|---|---|---|
+| **Warehouse & storage metrics** | Warehouse credit usage and per-database storage | `IMPORTED PRIVILEGES` on the `SNOWFLAKE` database and `USAGE` on the warehouse |
+| **Top queries (QUERY_HISTORY)** | Top queries by elapsed time, as log records, with about 45 minutes of latency | The same grants |
+
+:::note
+Elasticsearch, SAP HANA, and Snowflake coverages don't send the instance heartbeat the Databases list uses, so these databases don't appear there yet. Their metrics are available in Explore and in dashboards.
+:::
+
+### Set up Snowflake
+
+#### Grant access to ACCOUNT_USAGE
+
+The monitoring user's role needs imported privileges on the `SNOWFLAKE` database and usage on the warehouse that runs the monitoring queries:
+
+```sql
+GRANT IMPORTED PRIVILEGES ON DATABASE SNOWFLAKE TO ROLE YOUR_ROLE;
+GRANT USAGE ON WAREHOUSE YOUR_WAREHOUSE TO ROLE YOUR_ROLE;
+```
+
+Replace `YOUR_ROLE` and `YOUR_WAREHOUSE` with your role and warehouse names.
+
+#### Fill in the connection
+
+| Field | What to enter |
+|---|---|
+| **Account identifier** | Your Snowflake account identifier, such as `xy12345.us-east-1` |
+| **Warehouse** | The warehouse that runs the monitoring queries. Required. |
+| **Role** | The role you granted access to. It defaults to `ACCOUNTADMIN`; enter a dedicated role if you created one. |
+| **User** and **Password** | The monitoring user. Both are required. |
+| **Database** and **Schema** | Leave them at `SNOWFLAKE` and `ACCOUNT_USAGE`. |
+
+For how to store the password, see [Database credentials](../credentials/).
+
+#### Keep the collection interval coarse
+
+**Collection interval** defaults to `300s` for Snowflake, instead of the `60s` other engines use. Each collection runs queries on the warehouse you named, and those queries consume credits. A shorter interval raises that cost without giving you fresher data, because `ACCOUNT_USAGE` itself lags.
+
+A collection also resumes the warehouse if it's suspended, so use a small warehouse for monitoring.
+
+## Execution plans
+
+PostgreSQL, MySQL and MariaDB, SQL Server, and Oracle can send each statement's execution plan for [query details](../../../database-monitoring/query-performance/#explain-plan). Check **Collect execution plans** on the **Query performance** coverage. A new statement can take a few collection intervals before its first plan appears.
+
+| Engine | Also needed | Notes |
+|---|---|---|
+| PostgreSQL | `GRANT pg_read_all_data TO kmmonitor;`, because running `EXPLAIN` needs read access to your tables. Then open **Advanced**, choose **Query performance**, and set `top_query_collection.max_explain_each_interval: 1000`. | — |
+| MySQL and MariaDB | Nothing. The monitoring user already has `SELECT` on your tables. | Plans for statements with subqueries or `UNION` can't be displayed yet. |
+| SQL Server | Nothing. | Each plan is the full XML showplan, often tens to hundreds of KB per statement, so expect a noticeable increase in data volume. |
+| Oracle | Nothing. Plans come from `V$SQL_PLAN_STATISTICS_ALL`, which the Oracle grants already cover. | — |
+
+## Filter database logs
+
+Database log records carry `km.db.coverage`, set to the coverage they came from. Filter on it in Log Explorer, for example `query-performance`, `query-log`, `top-queries`, `schema`, `agent-jobs`, `index-health`, `slow-log`, `server-logs`, `stderr-logs`, or `logs`.
 
 ## Next steps
 
 <CardGrid>
   <LinkCard title="On a VM" href="../on-vm/" description="Set up monitoring on a Linux or Windows host." />
   <LinkCard title="On Kubernetes" href="../on-kubernetes/" description="Set up monitoring for in-cluster databases." />
-  <LinkCard title="Credentials" href="../credentials/" description="Provide the monitoring user's credentials." />
+  <LinkCard title="Credentials" href="../credentials/" description="Provide the monitoring user's password." />
+  <LinkCard title="Databases module" href="../../../database-monitoring/" description="Where the collected data appears." />
 </CardGrid>

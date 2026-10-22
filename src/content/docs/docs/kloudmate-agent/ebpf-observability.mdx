@@ -16,7 +16,7 @@ eBPF is part of the agent's automatic monitoring. On a managed-mode agent, it tu
 When eBPF monitoring is active, the agent collects:
 
 - **RED metrics** (Rate, Errors, and Duration) for your services, with no instrumentation.
-- **Service dependencies**, used to build the visual service map, including peer-to-peer latency.
+- **Request traces** for every call an eBPF-monitored service makes or receives. These draw the [service map](../../apm-and-tracing/apm-views/service-map/), with the latency of each call. A caller that sends no telemetry of its own still appears, named after its Kubernetes workload, or as `incoming` when the agent can't identify it.
 - **Network topology:** a host-to-host map of Layer 4 flows across your fleet. See [eBPF network topology](../ebpf-network-topology/).
 - **Database Activity Monitoring (DAM):** kernel-level capture of database queries on the wire, with no credentials.
 - **Distributed context propagation:** the agent reads and injects HTTP trace context (`traceparent`), so requests stay on one trace across services.

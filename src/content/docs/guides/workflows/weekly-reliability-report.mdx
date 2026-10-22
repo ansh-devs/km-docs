@@ -14,8 +14,7 @@ The finished workflow has these steps:
 ```text
 Schedule: Mondays at 09:00
 ├─ Collect the week's data             Parallel
-│  ├─ Requests and latency by service  MCP Tool Call
-│  ├─ Errors by service                MCP Tool Call
+│  ├─ Traffic and errors by service    MCP Tool Call
 │  ├─ Open incidents                   MCP Tool Call
 │  └─ SLOs                             MCP Tool Call
 ├─ Write the report                    AI Prompt
@@ -32,7 +31,7 @@ Schedule: Mondays at 09:00
 
 1. Create a [personal API key](/platform/settings/api-keys/#a-personal-key) and copy it. The workflow reads whatever the key's owner can read, so create it from an account that can see every service you want in the report.
 2. Copy the ID of this workspace from its URL in the KloudMate app. It starts with `ws_`.
-3. Open **Workflows → Connections**, click **Connect**, and pick **Custom MCP Server**. Name the connection `KloudMate MCP`, and fill in the form:
+3. Open **Workflows → Connections**, click **Connect**, and pick **Custom MCP Server**. Set **Connection name** to `KloudMate MCP`, and fill in the form:
 
    | Field | Value |
    |---|---|
@@ -50,7 +49,7 @@ The personal key works for every workspace its owner belongs to, and `x-workspac
 1. Copy the YAML below.
 2. Open **Workflows**, click **Import**, paste the YAML, and click **Import**.
 3. Click **Open workflow**, and set these before you publish:
-   - On the four MCP Tool Call steps, pick your `KloudMate MCP` connection.
+   - On the three MCP Tool Call steps, pick your `KloudMate MCP` connection.
    - On **Post the report**, pick your Slack connection and the channel.
    - On the trigger, set **Timezone** to your team's timezone, such as `Europe/Berlin`.
 
@@ -78,25 +77,16 @@ spec:
           - - id: traffic
               type: action
               action: mcp.call
-              display_name: Requests and latency by service
+              display_name: Traffic and errors by service
               connection_id:
                 $input: kloudmate_mcp
               with:
-                tool: get_service_requests_count_and_avg_latency
+                tool: search_traces
                 arguments:
-                  from: now-7d
-                  to: now
-          - - id: errors
-              type: action
-              action: mcp.call
-              display_name: Errors by service
-              connection_id:
-                $input: kloudmate_mcp
-              with:
-                tool: get_service_error_count
-                arguments:
-                  from: now-7d
-                  to: now
+                  groupBy:
+                    - serviceName
+                  window: 7d
+                  view: detail
           - - id: incidents
               type: action
               action: mcp.call
@@ -104,9 +94,9 @@ spec:
               connection_id:
                 $input: kloudmate_mcp
               with:
-                tool: search_incidents
+                tool: check_incidents
                 arguments:
-                  limit: 50
+                  view: detail
           - - id: slos
               type: action
               action: mcp.call
@@ -114,10 +104,9 @@ spec:
               connection_id:
                 $input: kloudmate_mcp
               with:
-                tool: search_slos
+                tool: check_slos
                 arguments:
-                  enabled: true
-                  limit: 50
+                  view: detail
       - id: write
         type: action
         action: ai.prompt
@@ -127,17 +116,14 @@ spec:
             Write this week's reliability report for the engineering team, as a Slack message. Use Slack formatting: *bold* for headings and short bullet lists. Keep it under 250 words, and don't include links.
 
             Include these sections:
-            1. Traffic and errors: the five busiest services, with their request count and error rate. Error rate is the service's errors divided by its requests, as a percentage.
+            1. Traffic and errors: the five busiest services, with their request count, error rate, and p95 latency.
             2. Open incidents: how many are open, and the three highest-severity ones by title.
-            3. SLOs at risk: every SLO that is breached or has less than 25% of its error budget left.
+            3. SLOs at risk: every enabled SLO that is breached or has less than 20% of its error budget left. Skip disabled SLOs.
 
-            Use only the numbers in the data below. If a section has no data, say so in one line. Latency in the data is in nanoseconds, so show it in milliseconds.
+            Use only the numbers in the data below. If a section has no data, say so in one line.
 
-            Requests and average latency by service:
+            Traffic and errors by service:
             {{ steps.traffic.output.result }}
-
-            Errors by service:
-            {{ steps.errors.output.result }}
 
             Open incidents:
             {{ steps.incidents.output.result }}
@@ -167,32 +153,33 @@ inputs:
 
 ### Collect the week's data
 
-A **Parallel** step runs four **MCP Tool Call** steps at the same time, one in each branch. Each step calls one tool on the KloudMate MCP server:
+A **Parallel** step runs three **MCP Tool Call** steps at the same time, one in each branch. Each step calls one tool on the KloudMate MCP server:
 
 | Step | Tool | Arguments |
 |---|---|---|
-| **Requests and latency by service** | `get_service_requests_count_and_avg_latency` | `from` is `now-7d`, and `to` is `now` |
-| **Errors by service** | `get_service_error_count` | `from` is `now-7d`, and `to` is `now` |
-| **Open incidents** | `search_incidents` | `limit` is `50` |
-| **SLOs** | `search_slos` | `enabled` is `true`, and `limit` is `50` |
+| **Traffic and errors by service** | `search_traces` | `groupBy` is `serviceName`, `window` is `7d`, and `view` is `detail` |
+| **Open incidents** | `check_incidents` | `view` is `detail` |
+| **SLOs** | `check_slos` | `view` is `detail` |
 
-Pick the tool from the **Tool** list, and the step builds the **Arguments** form from the tool's own input schema. The tools accept a relative time such as `now-7d`, so the same step reads the last seven days every week. `search_incidents` returns the incidents that aren't resolved yet, and `search_slos` returns each SLO with its latest compliance and error budget.
+Pick the tool from the **Tool** list, and the step builds the **Arguments** form from the tool's own input schema. A `window` of `7d` covers the seven days before the step runs, so the same step reads the past week every Monday.
 
-Every tool on this server only reads data, so the workflow can't change anything in KloudMate. Each step returns what the tool answered as `result`, so the next step reads it as `{{ steps.errors.output.result }}`. See [MCP Tool Call](/workflows/actions/#mcp-tool-call).
+`search_traces` grouped by `serviceName` returns each service's requests, errors, error rate, and p50, p95, and p99 latency, busiest service first. `check_incidents` without a target returns the incidents that aren't resolved yet, with their severity. `check_slos` returns every SLO, worst first, with its compliance and remaining error budget. It includes disabled SLOs, so the prompt tells the model to skip them. The `detail` view returns more rows than the default `summary` view, which lists only the three busiest services.
+
+Every tool on this server only reads data, so the workflow can't change anything in KloudMate. Each tool answers with a text summary, and the step returns it as `result`, so the next step reads it as `{{ steps.traffic.output.result }}`. See [MCP Tool Call](/workflows/actions/#mcp-tool-call).
 
 ### Write the report
 
-An **AI Prompt** step writes the report. The **Prompt** gives the model the structure to follow and the rules for the numbers, and then the data from the four tools:
+An **AI Prompt** step writes the report. The **Prompt** gives the model the structure to follow and the rules for the numbers, and then the data from the three tools:
 
 ```liquid
-Requests and average latency by service:
+Traffic and errors by service:
 {{ steps.traffic.output.result }}
 
-Errors by service:
-{{ steps.errors.output.result }}
+Open incidents:
+{{ steps.incidents.output.result }}
 ```
 
-When a reference sits inside other text, an object or a list renders as JSON, which the model reads well. So the prompt doesn't depend on the exact shape each tool returns, and the model does the arithmetic, such as each service's error rate.
+Each tool has already worked out the numbers, such as each service's error rate and its latency in milliseconds, so the model only picks and summarizes them.
 
 The prompt asks the model to use only numbers from the data, and to say so when a section has none, which keeps it from filling a gap with a guess. Read the first few reports against the numbers in KloudMate before you rely on them.
 
@@ -208,17 +195,17 @@ A Slack **Post Message** step posts `steps.write.output.text`. The `replace` fil
 
 ## Step 3: Test and publish
 
-1. Test each of the four MCP Tool Call steps from its **Test** tab. The output shows what the tool returned for your workspace, and a connection problem shows up here first.
+1. Test each of the three MCP Tool Call steps from its **Test** tab. The output shows what the tool returned for your workspace, and a connection problem shows up here first.
 2. Click **Test run**. It writes a report from this week's data and posts it in the channel.
 3. Compare the report with what KloudMate shows for the same week, and adjust the prompt if you want a different focus.
 4. Click **Publish**. The first publish also switches the workflow on.
 
 ## Adapt the workflow
 
-- **Report on other data.** Add another MCP Tool Call step to **Collect the week's data**, such as `search_alert_states` for the alerts firing now. Then add its result to the prompt, with a line that says what it is. The [KloudMate MCP server](/kloudmate-assistant/mcp-server/#available-tools) page lists the tools.
-- **Report every day.** Change the trigger to **Daily**, and change `now-7d` to `now-1d` in the arguments.
+- **Report on other data.** Add another MCP Tool Call step to **Collect the week's data**, such as `check_alerts` for the open alert groups. Then add its result to the prompt, with a line that says what it is. The [KloudMate MCP server](/kloudmate-assistant/mcp-server/#available-tools) page lists the tools.
+- **Report every day.** Change the trigger to **Daily**, and change the `window` of **Traffic and errors by service** to `1d`.
 - **Email the report instead.** Replace **Post the report** with a **Send Email** step, and ask for Markdown instead of Slack formatting in the prompt, because Send Email reads Markdown.
-- **Use another MCP server.** An MCP Tool Call step can call any server you connect as a **Custom MCP Server**, such as an internal service your team built. Use **API key in a header** under **Authentication** for a server that wants its key in a named header.
+- **Use another MCP server.** An MCP Tool Call step can call any server you connect as a **Custom MCP Server**, such as an internal service your team built. Use **API key** under **Authentication** for a server that reads its key from a custom header.
 
 ## Related
 

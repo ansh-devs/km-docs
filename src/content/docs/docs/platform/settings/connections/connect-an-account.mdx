@@ -6,19 +6,21 @@ sidebar:
   order: 2
 ---
 
-You need the **Developer** role to connect an account. Open **Settings → Connections** and click **Connect**.
+You need the **Developer** role to connect an account. Open **Settings → Connections** and click **Connect**. To connect a tool server for the Assistant without that role, use [Assistant → MCP Integrations](/kloudmate-assistant/settings/#connect-a-tool-server).
 
 The picker lists only the providers your organization can connect. If a provider you expect is missing, see [Providers](../providers/#providers-in-your-plan).
 
-![The Connect dialog listing providers such as Atlassian, AWS, Azure, Custom MCP Server, GitHub, Jira, OAuth 2.0, and Slack, each with chips for what it can be used for](./images/connect-provider-picker.png)
+![The Connect dialog listing providers such as Atlassian, AWS, Azure, Custom MCP Server, GitHub, Google Workspace, Jira, Microsoft 365 / Teams, and OAuth 2.0, each with chips for what it can be used for](./images/connect-provider-picker.png)
 
 Pick a provider and fill in the **Connection name**. How you finish depends on the provider.
 
-A connection made here starts with the provider's usual capability: **Notifications** for Slack and Jira Cloud; **Workflows** for AWS, Azure, a custom MCP server, and OAuth 2.0; and **AI** for the assistant tools. Change what it's used for, and who can use it, afterward under [Edit](../manage-connections/#edit).
+A connection made here starts with the provider's usual capability: **Notifications** for Slack and Jira Cloud; **Notifications** and **Meetings** for Microsoft 365 / Teams; **Meetings** for Google Workspace and Zoom; **Workflows** for AWS, Azure, a custom MCP server, and OAuth 2.0; and **AI** for the assistant tools. Change what it's used for, and who can use it, afterward under [Edit](../manage-connections/#edit).
 
 ## Connect through OAuth
 
-Slack, Jira Cloud, Sentry, and the Google Cloud providers send you to the provider's own site. Click **Connect** and approve the access there. KloudMate adds the connection when you're done.
+Slack, Jira Cloud, Microsoft 365 / Teams, Google Workspace, Sentry, and the Google Cloud providers send you to the provider's own site. Click **Connect** and approve the access there. KloudMate adds the connection when you're done.
+
+Zoom works the same way, except that you install the KloudMate app in Zoom instead of approving a consent screen. Install it from a Licensed Zoom account, because every war room meeting is hosted by the account that installed the app.
 
 The connection records the account you authorized, so you can tell two Slack installs or two Google accounts apart.
 
@@ -26,7 +28,9 @@ The connection records the account you authorized, so you can tell two Slack ins
 
 AWS, Azure, GitHub, Atlassian, a custom MCP server, and a generic OAuth 2.0 API take their credentials in a form. Fill in the provider's fields and click **Connect**.
 
-Where a provider supports more than one method, choose one under **Authentication**. AWS offers **Assume Role** (recommended) or **Access keys**; a custom MCP server offers no auth, a bearer token, or an API key in a named header.
+Where a provider supports more than one method, choose one under **Authentication**. For example, a custom MCP server offers **None**, **Bearer token**, **Basic auth**, **API key**, or **OAuth**.
+
+A custom MCP server with **OAuth** is saved as **Pending** first, and then KloudMate opens the server's own sign-in page. KloudMate finds the server's sign-in, registers itself as a client, and uses PKCE, so you don't need a client ID. If the sign-in doesn't finish, the row stays **Pending** with an **Authorize** button beside it.
 
 KloudMate checks the credential as soon as you save. If the check fails, it still saves the connection, so you don't lose what you typed, and marks it **Degraded**. Click **Edit** beside it and fix the values.
 
@@ -42,15 +46,15 @@ That matters most for app-event triggers. A Slack account connected from Setting
 
 ## Visibility
 
-Every connection is **Workspace** or **Private**.
+Every connection is **Workspace** or **Private**. A connection that can be used only for **AI** starts **Private**. Every other connection starts **Workspace**.
 
-**Workspace** is how every connection starts, and it's almost always the right choice. The connection belongs to the workspace, so anyone with the **Developer** role can use and manage it, and it keeps working when whoever connected it leaves.
+A **Workspace** connection belongs to the workspace. Anyone in the workspace can use it, anyone with the **Developer** role can manage it, and it keeps working when whoever connected it leaves.
 
-**Private** restricts a connection to its creator. Only a connection whose one capability is **AI** can be private, so use it for a personal GitHub or Google account that you want the assistant to use on your behalf and nobody else's.
+**Private** restricts a connection to its creator. Only a connection whose one capability is **AI** can be private, so use it for a personal GitHub or Google account that you want the Assistant to use on your behalf and nobody else's.
 
 A private connection is invisible to everyone else: it's absent from their list, and they can't use it even if they know its id.
 
-To make a connection private, set **Visibility** under **Edit**. To share a private connection with the workspace, use **Share with workspace** on its row menu.
+To make a connection private, set **Visibility** under **Edit**. To share a private connection with the workspace, use **Share with workspace** on its row menu. Only a **Developer** who created the connection can share it.
 
 ## Related
 

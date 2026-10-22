@@ -22,18 +22,22 @@ All usage metrics have the following attributes:
 
 ## **Service Map Metrics**
 
-| Name                                  | Description                                                                                                                                                 | Unit        |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| **KloudMateServiceMapRequests**       | Number of requests between a source and target service.                                                                                                     | Count       |
-| **KloudMateServiceMapFailedRequests** | Number of failed requests between a source and target service. A request is considered failed if either the source span or target span's status.code is 2.  | Count       |
-| **KloudMateServiceMapDuration**       | Duration of requests between source and target.                                                                                                             | Nanoseconds |
+These metrics count the calls behind each edge of the [service map](../../../apm-and-tracing/apm-views/service-map/). KloudMate derives them from your traces, including traces from eBPF monitoring.
+
+| Name                                  | Description                                                                                                                                 | Unit        |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| **KloudMateServiceMapRequests**       | Number of requests from a source to a target.                                                                                               | Count       |
+| **KloudMateServiceMapFailedRequests** | Number of failed requests from a source to a target. A request counts as failed if a span on either side of the call has `status.code` 2. | Count       |
+| **KloudMateServiceMapDuration**       | Duration of requests from a source to a target, as a histogram.                                                                            | Nanoseconds |
 
 All service map metrics have the following attributes:
 
-- `source.service.name`: Source service name.
-- `target.service.name`: Target service name.
-- `source.isError`: A boolean which is true if the source span's status.code is 2.
-- `target.isError`: A boolean which is true if the target span's status.code is 2.
+- `source_service_name`: The calling service. A caller that sends no telemetry is named after its Kubernetes workload, or `incoming` when it can't be identified.
+- `target_service_name`: The called service, or the host name of a dependency that sends no telemetry, such as a database.
+- `source_span_kind`, `target_span_kind`: The span kind on each side of the call, such as `Client` and `Server`.
+- `source_system`, `target_system`: The kind of call on each side: `http`, `db`, `messaging`, `service` (RPC), or `application`.
+- `edge_id`: The edge, as `<source>-><target>`.
+- `is_external`: `true` when the target is outside your cluster, such as a third-party API. The service map hides these edges unless **Show external dependencies** is on.
 
 ***
 

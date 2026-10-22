@@ -1,0 +1,93 @@
+---
+title: "War room troubleshooting"
+description: "Fix the permission banner, a chat connection that needs attention, a missing Join Call button, and responders who couldn't be invited."
+sidebar:
+  label: "Troubleshooting"
+  order: 3
+---
+
+Most war room problems come down to the chat connection: it isn't allowed to create a channel, or its credential has gone stale. Both show up before an incident if you look, which is the point of the banner below.
+
+## "Reconnect Slack to open war rooms"
+
+KloudMate checks the chat channel's permissions when you pick it in the settings, and again when you open the **Start war room** dialog. When something is missing, it shows this banner with the exact scopes listed, and keeps **Start war room** disabled.
+
+Add **Workflows** to the Slack connection under **Settings → Connections**, then reconnect it. The [setup page](../setup/#set-up-slack-rooms) walks through it and lists what each scope is for.
+
+:::note
+The check in the settings always asks for the private-channel scope, `groups:write`. If you open public rooms, it can report `groups:write` as missing while your rooms open fine. Check **Private room** before acting on that one line.
+:::
+
+For Microsoft Teams, the missing scopes come from the Microsoft 365 connection. Reconnect it and approve `Chat.Create`, `ChatMessage.Send`, `User.ReadBasic.All`, and `OnlineMeetings.ReadWrite`.
+
+## The chat connection needs attention
+
+If the connection is listed as anything other than **Verified**, war rooms are the first thing to break, because opening one takes more permissions than posting a message.
+
+| Status | What it means for war rooms |
+|---|---|
+| **Needs reconnect** | The grant is dead or too narrow. Rooms won't open until you reconnect. Hover the status for the reason. |
+| **Revoked** | The provider refused the credential the last time something used it. Reconnect or re-enter it. |
+| **Degraded** | The last check failed. Rooms may still open, since the check and the room use different calls. **Re-check** it. |
+| **Disabled** | Someone switched the connection off. Nothing opens until it's back on. |
+
+**Re-check** can clear **Revoked**, but only a reconnect clears **Needs reconnect**. The full list of statuses and reconnect reasons is on [Manage a connection](/platform/settings/connections/manage-connections/#reconnect).
+
+## A rule should have opened a room and didn't
+
+Rooms open in the background, so give it a few seconds before you call it broken.
+
+If nothing appears, open the incident and click **Start war room**. The dialog runs the same permission check and shows you the reason: a scope gap in the banner, a channel name that's taken on the name field, or a credential error in a message. Fixing it there fixes the automatic path too.
+
+Also worth checking: the room only opens on an escalation step's first pass, and a routing rule only opens one for incidents it creates. Neither opens a room for an incident that already existed.
+
+## A connection isn't in the meeting picker
+
+**A new meeting per incident** lists connections granted for **Meetings**. Microsoft 365, Google Meet, and Zoom carry that grant when you connect them, so a connection that's missing from the picker was either made before this existed or had the grant removed. Open it under **Settings → Connections**, click **Edit**, and add **Meetings** under **Can be used for**. If it's then marked **Needs reconnect**, reconnect it.
+
+Saving a connection that can't create meetings is refused with `connection '<provider>' is not connected for meetings`.
+
+## The room opened without a Join Call button
+
+A call provider that fails doesn't hold up the room. KloudMate opens the channel, invites everyone, and leaves the call off the card.
+
+Open the incident, click the edit icon on **Conference call**, and paste a **Meeting link**. The card and the topic pick it up. Then look at why the provider failed:
+
+- The connection selected under **A new meeting per incident** was deleted, switched off, or is **Needs reconnect** or **Revoked**. Removing the KloudMate app at Zoom's end leaves the connection in exactly that state.
+- The connection lost its **Meetings** grant, so the setting no longer points at anything usable.
+
+KloudMate doesn't retry the meeting for an open room, so adding the link by hand is the fix for the incident in front of you.
+
+## Zoom calls cut out after 40 minutes
+
+The KloudMate app was installed from a Basic Zoom account, and every war room meeting is created as the account that installed it. The Zoom connection shows **Degraded** with the account type in its error, something like `ops@example.com is a Zoom type 1 account`.
+
+Install the app again from a Licensed account. Meetings created after that carry no time limit.
+
+## Someone wasn't invited
+
+KloudMate matches people by email address: the address on their KloudMate account has to match their Slack or Teams account. When it can't find a match, that person is listed under **Could not add** on the card and tagged **Unmapped** on the incident panel, with the reason on hover.
+
+Two things cause nearly all of these. The addresses genuinely differ, which you fix at one end or the other. Or the connection can't read email addresses at all, which is the `users:read.email` scope for Slack and `User.ReadBasic.All` for Teams, and shows up as the banner above.
+
+Invite them to the channel yourself for the incident at hand. Once they're matched, KloudMate remembers the pairing for later rooms.
+
+## That name is taken
+
+You get this on the name field when you've typed a name another channel already holds. Choose another, or clear the field and let KloudMate name the room from your template. Generated names aren't rejected: KloudMate adds a short suffix and opens the room.
+
+## The room was archived while we were still using it
+
+An archive scheduled when the incident resolved still runs if you reopen the incident in the meantime. Unarchive the channel in Slack to carry on in it. Starting the war room again returns the same archived room rather than creating a second one.
+
+If this keeps happening, raise the delay under **After the incident resolves**, or set it to **Keep the room open** and archive rooms yourself with **Archive war room** on the incident panel.
+
+## A Teams room is missing things a Slack room has
+
+Teams rooms have no action buttons, no thread replies, and no RCA. Acknowledge, resolve, and add notes from the incident page. Microsoft Graph also can't archive a group chat, so a closed Teams room gets a closing summary and nothing else: KloudMate stops posting to it, but the chat stays in your Teams workspace. **Private room** doesn't apply to group chats either.
+
+## Related
+
+- [Set up war rooms](../setup/): the permissions each provider needs.
+- [War rooms overview](../): what the card shows and what each button does.
+- [Connections](/platform/settings/connections/): connection statuses, re-check, and reconnect.

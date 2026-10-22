@@ -38,6 +38,13 @@ The protocol badge determines what a row can show:
 - **HTTP** rows carry a method chip and a full `2xx`/`3xx`/`4xx`/`5xx` status breakdown.
 - **RPC** rows (gRPC, Connect) have no HTTP method or status classes, so the **Status** column shows a dash (`—`). Judge these endpoints by their **error rate**, which is derived from span status and works for every protocol.
 
+### No route and Unknown method rows
+
+Two kinds of HTTP row group requests that have no endpoint label of their own:
+
+- **No route:** requests the service handled without reporting a route. Typical causes are `404` responses, requests rejected before routing (authentication, CORS preflight `OPTIONS`), and proxies that do not record routes. Each service gets one such row per HTTP method. Open the row to see the individual requests and, where the span records one, their paths.
+- **Unknown method:** requests with a non-standard HTTP method, such as scanner verbs (`PROPFIND`) or request lines the instrumentation could not read. Each service gets one such row.
+
 :::tip
 The trend sparkline rolls up hourly, so it needs at least two hourly buckets to draw a line.
 :::
@@ -75,7 +82,7 @@ At the top, summary tiles show **Requests**, **Error rate**, and **p95 latency**
 
 The drill-down ends with a table of the endpoint's traces, so you can move from a metric to the exact requests behind it:
 
-- Each row shows the start time, span, and duration, with a **View trace** action that opens the full trace in [Trace Detail](../../trace-detail/).
+- Each row shows the start time, the request (its path, or the method name for RPC), the HTTP status, and the duration, with a **View trace** action that opens the full trace in [Trace Detail](../../trace-detail/).
 - Toggle **Failed only** to keep just the errored requests. This uses the same protocol-neutral error definition as the metrics, so it covers HTTP `5xx` and gRPC/Connect errors alike.
 - **Open in Traces** hands the current endpoint and time range to the [Trace Explorer](../../trace-explorer/) for deeper filtering and analysis.
 

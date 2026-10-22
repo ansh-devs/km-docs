@@ -9,6 +9,13 @@ In a high-volume environment, you may not want to send every trace and log to Kl
 
 The OpenTelemetry Collector provides several processors for sampling data. The two most common approaches are **Head Sampling** (making a sampling decision at the beginning of a trace) and **Tail Sampling** (making a decision after all spans for a trace have been collected).
 
+## Where to add the configuration
+
+- **KloudMate agent:** add the processor as a [custom config override](../../kloudmate-agent/custom-config-override/) on the agent's **Configuration** page. In the pipeline, list only the sampler, for example `processors: [probabilistic_sampler]`. The agent places it before `batch` and keeps the rest of the managed pipeline. The override page has ready-to-paste versions of [percentage sampling](../../kloudmate-agent/custom-config-override/#sample-a-percentage-of-traces-and-logs) and [tail sampling](../../kloudmate-agent/custom-config-override/#keep-error-and-slow-traces-sample-the-rest).
+- **Your own OpenTelemetry Collector:** add the processor to the Collector's configuration file and restart the Collector. The examples below show the complete pipeline for this case. See [Configure the Collector](../using-opentelemetry-collector/) for the rest of the file.
+
+If the agent instruments your services, you can also lower trace volume at the source with a per-service [sampling rate](../../kloudmate-agent/auto-instrumentation/sampling/), which needs no collector configuration.
+
 ## Probabilistic Sampling (Head Sampling)
 
 To reduce volume with a uniform rate, use the `probabilistic_sampler` processor, which randomly drops a set percentage of your data.
@@ -85,5 +92,6 @@ service:
 
 - [Official Docs: Probabilistic Sampler Processor](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/probabilisticsamplerprocessor)
 - [Official Docs: Tail Sampling Processor](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/tailsamplingprocessor)
+- [Custom config override for the KloudMate agent](../../kloudmate-agent/custom-config-override/)
 - [Mask and Drop Sensitive Data](../masking-sensitive-data/)
 - [Configure the Collector](../using-opentelemetry-collector/)

@@ -34,7 +34,7 @@ The workflows pass information to each other through [Storage](/workflows/storag
 
 ## Step 1: Let the AWS connection stop and start the instances
 
-Add this policy to the IAM role that your AWS connection uses. Replace `ACCOUNT_ID` with your AWS account ID:
+Attach this policy to the IAM user whose access keys your AWS connection uses. Replace `ACCOUNT_ID` with your AWS account ID:
 
 ```json
 {
@@ -59,7 +59,7 @@ Add this policy to the IAM role that your AWS connection uses. Replace `ACCOUNT_
 
 The condition limits stopping and starting to instances tagged as development, so the connection can't stop a production instance even if a step asks it to.
 
-If the instances' EBS volumes are encrypted with a customer managed KMS key, the role also needs `kms:CreateGrant` on that key. Without it, an instance goes back to **Stopped** a few seconds after the morning workflow starts it.
+If the instances' EBS volumes are encrypted with a customer managed KMS key, the IAM user also needs `kms:CreateGrant` on that key. Without it, an instance goes back to **Stopped** a few seconds after the morning workflow starts it.
 
 ## Step 2: Import the workflows
 

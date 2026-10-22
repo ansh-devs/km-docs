@@ -37,7 +37,7 @@ Form: Request SSH access to the bastion
 
 ## Step 1: Let the AWS connection change the security group
 
-Add this policy to the IAM role that your AWS connection uses. Replace `REGION`, `ACCOUNT_ID`, and the security group ID with your own values:
+Attach this policy to the IAM user whose access keys your AWS connection uses. Replace `REGION`, `ACCOUNT_ID`, and the security group ID with your own values:
 
 ```json
 {

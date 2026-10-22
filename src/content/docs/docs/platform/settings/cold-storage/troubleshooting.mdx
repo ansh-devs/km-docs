@@ -1,0 +1,104 @@
+---
+title: "Troubleshoot Cold Storage"
+description: "Fix an S3 archive bucket that fails verification or stops working, and find out why a rehydration hour didn't load."
+sidebar:
+  label: "Troubleshooting"
+  order: 4
+---
+
+When KloudMate can't write to your bucket, the **Archive** tab marks it **Not working** and shows the reason, including what to change. Verify shows the same reasons during setup.
+
+## Verification and export errors
+
+After you fix the cause in AWS, click **Verify** on the **Archive** tab. Exports resume when verification passes.
+
+### The bucket does not exist
+
+KloudMate couldn't find a bucket with that name. KloudMate doesn't create the bucket, so create it in S3 in the region you selected, then verify again. Also check the bucket name for typos.
+
+### The bucket is not in the selected region
+
+The bucket exists, but in a different region from the one you selected. The region can't be changed on an existing connection, so click **Replace…** and connect the same bucket again with its own region.
+
+### KloudMate could not assume the role
+
+KloudMate's request to assume the role was refused. Check that:
+
+- the **Role ARN** you pasted is the **RoleArn** output of the stack
+- the stack finished creating, and the role still exists
+- the role's trust policy still has your workspace ID as the external ID. The stack sets it from the **ExternalId** parameter, so recreate the stack from the **Open AWS Console** link if that parameter was changed.
+
+To use a different role, click **Change role** and paste its ARN.
+
+### The role was assumed, but S3 refused access
+
+The role works, but S3 refused to let it write, read, or list under `<prefix>/kloudmate/`.
+
+The usual cause is a role from an earlier attempt whose stack still names a different bucket or prefix. In CloudFormation, update the `kloudmate-archive` stack with **Use current template**, set **BucketName** and **Prefix** to the bucket and prefix you connected in KloudMate, and verify again. The role ARN stays the same.
+
+If that stack's old bucket holds archived logs you still want to rehydrate, don't update it. Create a new stack under another name instead, as described in [If a kloudmate-archive stack already exists](../archive-logs-to-s3/#if-a-kloudmate-archive-stack-already-exists).
+
+If the stack's values are already correct, look for something else denying access:
+
+- a bucket policy with a `Deny` that covers the role or the prefix
+- an AWS Organizations service control policy or a permissions boundary that limits the role
+
+### The KMS key refused KloudMate access
+
+The bucket encrypts with SSE-KMS, and the key didn't let the role encrypt or decrypt. Set the stack's **KmsKeyArn** parameter to the ARN of the bucket's default encryption key, and check that the key policy allows the role to use the key. Then verify again.
+
+### Could not check the bucket
+
+A message that starts with "Could not check the bucket" means verification hit a problem that isn't a setting on your side, such as a temporary AWS error. Wait a few minutes and click **Verify** again.
+
+## A bucket that stops working later
+
+KloudMate can lose access after setup, for example when someone deletes the role or the bucket, edits the bucket policy, or changes the KMS key policy. When that happens:
+
+- Exports pause, and the bucket shows **Not working** with the reason.
+- KloudMate emails the Owner who connected the bucket, with a link to **Settings → Cold Storage**.
+- A rehydration that's loading from that bucket stops. The hours it hadn't loaded yet fail with the same reason, and the hours already loaded stay searchable.
+
+Fix the cause using the sections above, then click **Verify**. Exports resume and catch up on the hours that were missed, as long as they're still within the workspace's log retention. Hours that leave retention before then show as **Expired** in **Coverage** and aren't archived, so fix a broken bucket as soon as you can.
+
+## Failed or expired days in Coverage
+
+- **Failed**: some hours on that day failed to export. KloudMate retries them once a day while they're within retention. If the bucket shows **Not working**, fix that first.
+- **Expired**: some hours left the workspace's log retention before they could be exported. They can't be recovered.
+
+## Rehydration problems
+
+If the estimate refuses a request, it says which limit the request breaks. See [Limits](../rehydrate-logs/#limits).
+
+To see why individual hours failed, hover over the failed count in the **Progress** column on the **Rehydrations** tab.
+
+To retry hours that failed, start a new rehydration that covers them. A new rehydration can't overlap an active one in the same workspace, so delete the first one or wait for it to expire.
+
+### This hour's files are in a Glacier storage class
+
+A lifecycle rule moved the hour's files to a storage class that KloudMate can't read, such as S3 Glacier Flexible Retrieval or Deep Archive. Restore the files in S3, then retry the hour. See [Logs in Glacier storage classes](../rehydrate-logs/#logs-in-glacier-storage-classes).
+
+### This hour's archived files are no longer in the bucket
+
+The hour's files were deleted from the bucket, for example by a lifecycle rule that expires old objects. KloudMate can't load that hour.
+
+### The hour could not be loaded
+
+KloudMate tried to load the hour several times and couldn't. Retry the hour later.
+
+### The archived files for this hour changed after they were written
+
+Files under that hour's folder were added, removed, or replaced after KloudMate exported it. KloudMate loads an hour only if its files are exactly as it wrote them. Don't add or edit files under `<prefix>/kloudmate/`.
+
+### An hour fails with a bucket error
+
+If an hour fails with one of the [verification errors](#verification-and-export-errors), KloudMate lost access to the bucket during the load. Fix the cause and verify the bucket, then retry the hours that didn't load.
+
+### The Log Explorer can't search a rehydration
+
+- **You can search this rehydration once its first hour loads**: it's still queued, or its first hour is loading.
+- **You can no longer search this rehydration**: it expired, was cancelled, or was deleted. Start a new one to search the range again.
+
+## Disabling or deleting keeps your files
+
+KloudMate's role has no delete permission, so disabling, replacing, or deleting the archive never removes files from your bucket. To remove archived logs, delete them in S3 or set up a lifecycle rule. When you no longer need to rehydrate from a bucket, delete its CloudFormation stack to remove the role.

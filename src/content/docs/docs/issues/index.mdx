@@ -1,7 +1,6 @@
 ---
 title: Issues
-description: Learn how KloudMate automatically discovers, aggregates, and helps
-  you resolve errors and warnings across your services.
+description: Find, investigate, and resolve the errors your logs, traces, and real user monitoring report, grouped into issues.
 editUrl: true
 head: []
 template: doc
@@ -14,83 +13,127 @@ pagefind: true
 draft: false
 ---
 
-KloudMate automatically discovers errors from your application logs and traces and aggregates them in the Issues section. This gives you a centralised view of all errors and warnings detected across your services, so you can track, investigate, and resolve them efficiently.
+KloudMate groups the errors in your logs, traces, and real user monitoring (RUM) into issues. Each issue is one kind of error, and every time that error happens again, it adds an event to the issue. Use the Issues list to see what's failing right now, then open an issue to find out who it hit, what led up to it, and where in your code it was thrown.
 
-To navigate to the Issues screen, click **Issues** in the left navigation menu.
+To open the list, click **Issues** in the left navigation menu.
 
-## Issues Dashboard
+## Find the issues that need attention
 
-The **Issues** screen displays all detected issues in a list.
+![Issue list filtered to RUM issues, with the Trend, Events, Last seen, and Assigned columns](./images/issues-list.png)
 
-![Issues dashboard showing the list of all unresolved issues](./images/issues-1.png)
+The figures in the list cover different time ranges. The event count is the total since the issue was first seen, while the trend and the count under it cover the last 24 hours. For example, an issue with 5,000 events and none in the last 24 hours has probably stopped happening. Sort by **Last seen** to find what's failing now.
 
-Each issue shows the source, last seen time, occurrence count, and assigned user.
+For a RUM issue, the users and sessions cover the last 14 days. The release shown is the latest event's release, which tells you whether the error still happens in your most recent deploy.
 
-Use the **Assignee**, **Service**, **Source**, and **Error type** filters to narrow down the list.
+An issue is marked **New** for 24 hours after it was first seen.
 
-Issues are organised across three tabs — **All Unresolved**, **Ignored**, and **Resolved** — so you can focus on what's active or review previously handled issues.
+Search matches both the error message and the error type. For example, searching for `TypeError` finds every issue of that type, whatever its message.
 
-Click **Notification settings** at the top right to configure when you receive notifications for new or recurring issues.
+To resolve or ignore several issues at once, select them in the list and choose the action. A selection covers only the current page, and changing the tab, a filter, the sort order, or the page clears it.
 
-Click **Explore Error Patterns** at the top right to identify recurring error patterns across your services.
+## Investigate an issue
 
-## Issue Details
+![RUM issue details: tags, summary tiles, actions, context bar, event navigator, stack trace, Tags, and Affected users](./images/issue-details.png)
 
-Click on any issue to open its detail view.
+Log, trace, and RUM issues all show how often the error happens and its stack trace. The rest of a RUM issue comes from what the RUM SDKs report with each error: the user, the session, and what happened before it. Users and sessions, **Before the error**, **Tags**, and **Affected users** appear on RUM issues only.
 
-![Issue detail page showing error message, metadata, occurrence chart, stacktrace, and infrastructure context](./images/issues-2.png)
+For a structured log, the title is the readable message from the log record.
 
-The detail page shows:
+### What the numbers count
 
-- The full **error message** at the top
-- **Service**, **source** (Logs or Traces), **first seen**, **last seen**, and total **occurrence count**
-- An **Occurrences over time** chart showing how frequently the issue has occurred across the selected time range
-- A **Stacktrace** section with the error type and the full call stack for pinpointing the origin of the error
-- An **Infrastructure** section showing the service name and Kubernetes context — cluster, container, deployment, namespace, node, pod, and replicaset details
+The figures at the top of an issue cover the last 14 days. The exceptions are the total event count and **First seen**, which go back to the first event. The trend counts events per UTC day, so a day's bar may not line up with your local calendar day.
 
-### Related Errors
+**Users** counts people, not sessions. Each signed-in user counts once, and so does each browser whose visitor never signed in. Anonymous browsers are counted for events from browser SDK 2.7.0 and later. For events from older versions, only users identified with `setUser()` are counted.
 
-The **Related Errors** section at the bottom lists individual occurrences of the issue with timestamps, service names, and direct **Show Logs** links for deeper investigation into each occurrence.
+On a RUM issue, **First seen** and **Last seen** also show the release of the first and latest events. The first event's release is shown only when that event happened in the last 14 days.
 
-![Infrastructure context and Related Errors table with timestamps and Show Logs links](./images/issues-3.png)
+### Handled and unhandled errors
 
-### Actions
+A RUM issue is marked **Handled** or **Unhandled** for the event you're viewing:
 
-From the issue detail page you can take the following actions using the action bar:
+- **Handled** means your app caught the error and reported it, with `recordException()` or `console.error()`.
+- **Unhandled** means nothing in your app caught it, such as an uncaught exception or an unhandled promise rejection.
 
-![Action bar showing Mark as resolved, Ignore, Ask Assistant, Create in Jira, and Comments](./images/issues-4.png)
+The flag needs browser SDK 2.8.0 or later. Events from older versions aren't marked either way.
 
-- **Mark as resolved** — removes the issue from the Unresolved list.
-- **Ignore** — mutes future notifications for this issue if it reoccurs.
-- **Ask Assistant** — automatically analyses the issue and provides a concise summary, probable root cause, and recommended actions for faster resolution.
-- **Create in Jira** — creates a Jira ticket directly from the issue for tracking in your existing workflow.
-- **Assign** — assign the issue to one or more team members using the assign icon on the right. Assigned users are notified when an issue is assigned to them.
-- **Comments** — add comments using the comment icon on the right. You can mention other users in comments, and all participating users receive notifications for any updates on the issue.
+### One event at a time
 
-You can also mark issues as resolved or ignored in bulk by selecting multiple issues from the main list and applying the action collectively.
+The context, stack trace, and **Before the error** on a RUM issue all describe a single event. The page opens on the latest event and moves to newer ones as they arrive. Use **Oldest**, **Newest**, and the arrows to look at any other event from the last 14 days. After you step back to an older event, the page stays on that event.
 
-## Issue Statuses
+A log or trace issue shows its latest event from the last 6 days.
 
-- **Unresolved** — an issue that has been detected and is yet to be reviewed or addressed.
-- **Resolved** — an issue that has been reviewed and marked as resolved. It will no longer appear in the Unresolved list.
-- **Ignored** — an issue that has been intentionally muted. No notifications will be sent if the same issue reoccurs in the future.
+### Read the stack trace
 
-## Notification Preferences
+For a browser issue, each frame is mapped through the [source maps](../rum/source-maps/) you uploaded, so you see your original file, line, and code instead of the minified bundle. Switch to **Raw** to see the stack as the browser reported it.
 
-Click **Notification settings** on the Issues dashboard to configure when you receive alerts. You can choose to be notified for:
+A frame that couldn't be mapped carries a badge with the reason, such as **no source map** or **ambiguous release**. [Troubleshoot unmapped frames](../rum/source-maps/#troubleshoot-unmapped-frames) explains each badge and how to fix it.
 
-- **New Issues** — issues detected for the first time.
-- **New and Regression Issues** — issues detected for the first time, as well as issues that had previously occurred and have reappeared.
+For a log or trace issue, the stack is shown as it was reported.
 
-## User Permissions
+### See what led up to the error
 
-Access to issue actions is determined by the user's assigned role:
+**Before the error** lists what happened in the session during the 60 seconds before a RUM error: page loads and route changes, clicks, requests with their status and duration, console warnings and errors, custom events sent with `addEvent()`, long tasks, and earlier errors. For example, a `POST /api/cart` that returned `500` two seconds before a `TypeError` usually explains the error.
 
-- **Owner and Developer** — can mark issues as resolved or ignored, assign issues to team members, create Jira tickets, and leave comments.
-- **Viewer** — can assign issues to team members and leave comments, but cannot mark issues as resolved or ignored.
+The trail needs browser SDK 2.7.0 or later. The SDK keeps personal data out of it:
+
+- URLs are recorded without their query string or fragment.
+- A click records the label of the button or link, such as `click "Pay now"`, never the content of a form field.
+- A click inside an element with the `km-mask` class, or with the session recorder's block or ignore class (`km-block` and `km-ignore` by default), records no text. The same applies to a control that contains one of these elements.
+
+To keep click labels out of the trail, set `captureClickText` to `false`. To turn the trail off, set `breadcrumbs.enabled` to `false`:
+
+```javascript
+KloudMateRum.init({
+  endpoint: 'https://otel.kloudmate.com:4318',
+  rumAccessToken: 'YOUR_PUBLIC_API_KEY',
+  applicationName: 'my-app',
+  breadcrumbs: { captureClickText: false },
+});
+```
+
+### Find out who was affected
+
+**Tags** breaks down a RUM issue's events from the last 14 days by release, browser, OS, device, page, country, and environment. A value near 100% narrows down the cause. For example, `Safari 100%` under **Browser** points at a Safari-only bug, and a single release points at that deploy.
+
+**Affected users** lists the 10 sessions the issue hit most recently. A visitor who wasn't signed in is listed as **Anonymous** with the start of the browser's visitor ID, so you can tell two anonymous visitors apart. If the session was recorded, its replay starts 5 seconds before the error. See [Record sessions for replay](../rum/instrumentation-guide/web/#record-sessions-for-replay) to turn recording on.
+
+The event list holds up to 100 of the latest events: from the last 14 days for a RUM issue, or from the last 6 days for a log or trace issue.
+
+## Resolve, ignore, or assign an issue
+
+- **Mark as resolved** moves the issue to **Resolved**. If the error happens again, the issue reopens.
+- **Ignore** stops notifications for the issue and moves it to **Ignored**, out of the unresolved list. Click it again to stop ignoring the issue.
+- **Ask Assistant** opens the [KloudMate Assistant](../kloudmate-assistant/) with a prompt about the issue already written. Nothing is sent until you send it.
+- **Create in Jira** needs a [Jira integration](../platform/settings/notification-channels/#jira).
+- Team members are notified when you assign an issue to them. Everyone who comments on an issue is notified of later comments, and you can mention other users in a comment.
+
+## How long issues are kept
+
+An issue is deleted after 15 days without an event, whether it's unresolved, resolved, or ignored. Its comments and assignments are deleted with it.
+
+If the error happens again after that, it starts a new issue. The new issue is unresolved, marked **New**, and triggers a new-issue notification, even if you had ignored the old one.
+
+## Notification preferences
+
+Click **Notification settings** on the Issues list to choose when you're notified:
+
+- **New Issues**: issues detected for the first time.
+- **New and Regression Issues**: issues detected for the first time, as well as issues that had previously occurred and have reappeared.
+
+To send these notifications to specific channels for specific services, see [Notification routing](./notification-routing/).
+
+Click **Explore Error Patterns** to find recurring error patterns across your services.
+
+## User permissions
+
+- **Owner and Developer**: resolve and ignore issues, one at a time or in bulk, assign issues, create Jira tickets, and comment.
+- **Viewer**: assign issues and comment, but not resolve or ignore them.
 
 ## Related Resources
 
 - [Notification routing](./notification-routing/)
+- [Source maps](../rum/source-maps/)
+- [Session detail](../rum/session-detail/)
+- [Browser SDK reference](../rum/instrumentation-guide/sdk-reference/)
 - [Routing Rules](../alerts/routing-rules/)
 - [Notification Channels](../platform/settings/notification-channels/)

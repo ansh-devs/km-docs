@@ -1,0 +1,119 @@
+---
+title: "Atlassian"
+description: "Connect the KloudMate Assistant to Jira and Confluence through Atlassian's MCP server, with a scoped API token or a service account API key."
+sidebar:
+  label: "Atlassian"
+  order: 5
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+An Atlassian connection lets the [KloudMate Assistant](../../../../kloudmate-assistant/) read and search Jira and Confluence through Atlassian's Rovo MCP server. It takes one API token, which is one of these:
+
+- **A personal API token.** You create it in your Atlassian account. The assistant acts as you.
+- **A service account API key.** An Atlassian admin creates it for a service account. The assistant acts as that account.
+
+Both need agent-interface scopes. A token without them still connects and lists the tools, but Atlassian refuses every tool call, and the connection shows **Degraded**.
+
+## Before you start
+
+An Atlassian organization admin must allow API tokens for the MCP server. In Atlassian Administration, go to **Rovo** > **Rovo MCP server** > **Authentication** and turn on **Allow API token authentication**. Until then, Atlassian refuses every token and key.
+
+## Scopes
+
+A personal API token and a service account API key take the same scopes. Select every scope you need when you create the token, because Atlassian doesn't let you change the scopes of an existing token.
+
+| To let the assistant | Select |
+|---|---|
+| Find your Atlassian sites. The connection check needs this. | `read:me`, `read:account` |
+| Read and search Jira | `read:jira:agent-interface`, `search:jira:agent-interface` |
+| Read and search Confluence | `read:confluence:agent-interface`, `search:confluence:agent-interface` |
+| Create and edit Jira issues, add comments, and move issues between statuses | `write:jira:agent-interface` |
+| Create and edit Confluence pages | `write:confluence:agent-interface` |
+
+Select only the `agent-interface` scopes. Classic scopes such as `read:jira-work` don't work with the MCP server. Leave out the `write:` scopes if the assistant must only read.
+
+## Create a personal API token
+
+<Steps>
+
+1. Open [API tokens](https://id.atlassian.com/manage-profile/security/api-tokens) in your Atlassian account.
+
+2. Click **Create API token with scopes**. Don't use **Create API token**: a token without scopes can't call any tool.
+
+3. Enter a name and an expiry date.
+
+4. Select the **Atlassian MCP V2** app.
+
+5. Select the [scopes](#scopes) for what the assistant does.
+
+6. Create the token and copy it. Atlassian shows it only once.
+
+</Steps>
+
+## Create a service account API key
+
+Only an Atlassian organization admin can do this.
+
+<Steps>
+
+1. In [Atlassian Administration](https://admin.atlassian.com), select your organization.
+
+2. Select **Directory** > **Service accounts**. If there is no service account yet, create one.
+
+3. Select the service account, then select **Create credentials** > **API token** > **Next**.
+
+4. Enter a name and an expiry date, then select **Next**. The key can last from 1 to 365 days.
+
+5. Select the [scopes](#scopes), then select **Next** > **Create**.
+
+6. Copy the key. Atlassian shows it only once.
+
+</Steps>
+
+### Give the service account access
+
+The scopes set what the key can do. The service account's own access sets where it can do it. The assistant can do only what both allow.
+
+| For the assistant to | Give the service account |
+|---|---|
+| Read and search Jira | Access to Jira, and a role in each project that lets it browse the project |
+| Create and edit issues, add comments, and move issues between statuses | Also the project permissions to create issues, edit issues, add comments and transition issues |
+| Read and search Confluence | Access to Confluence, and permission to view each space |
+| Create and edit pages | Also permission to add and edit pages in each space |
+
+A personal API token needs none of this. It has the same access as the account that created it.
+
+## Connect it in KloudMate
+
+<Steps>
+
+1. Go to **Settings** > **Connections**, or **Assistant** > **MCP Integrations**, and click **Connect**.
+
+2. Select **Atlassian**.
+
+3. Paste the personal API token or the service account API key into **API token**.
+
+4. Click **Connect**.
+
+</Steps>
+
+KloudMate then checks the connection. It lists the tools and calls `getAccessibleAtlassianResources`, a read-only tool that lists the Atlassian sites the credential can reach. When that call works, the connection shows **Verified**.
+
+The Assistant uses one Atlassian connection. If there are two, the one it doesn't use shows **Not used by the Assistant**. See [One tool server per provider](../../../../kloudmate-assistant/settings/#one-tool-server-per-provider).
+
+## If the connection shows Degraded
+
+To see why the last check failed, point to **Degraded** in the connections list.
+
+| Atlassian says | What to do |
+|---|---|
+| The session token is missing the scope claim | The token has no scopes. Create a token with **Create API token with scopes**, then put it in the connection with [Edit](../manage-connections/#edit). |
+| Insufficient scopes … Required: [read:me, read:account] | The token can't list your Atlassian sites. Create a token that has the scopes in the message, then put it in the connection with [Edit](../manage-connections/#edit). Atlassian doesn't let you change the scopes of an existing token. |
+| You don't have permission to connect via API token | The Atlassian organization doesn't allow API tokens for the MCP server. Ask an organization admin to turn it on, as described in [Before you start](#before-you-start). |
+
+## Related
+
+- [Providers](../providers/)
+- [Manage connections](../manage-connections/)
+- [Configure authentication via API token](https://developer.atlassian.com/cloud/rovo-mcp/guides/configuring-authentication-via-api-token/) (Atlassian)

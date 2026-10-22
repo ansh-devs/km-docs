@@ -1,0 +1,55 @@
+---
+title: "Cold Storage"
+description: "Archive a workspace's logs to your own S3 bucket, and load them back into KloudMate when you need to search them."
+sidebar:
+  label: "Overview"
+  order: 1
+---
+
+Cold Storage keeps a copy of your logs in an S3 bucket in your own AWS account, long after they've left KloudMate's log retention. When you need older logs again, you rehydrate a time range: KloudMate loads it back so you can search it in the Log Explorer for 7 or 14 days.
+
+Use it when you need logs older than your plan's retention, for example to:
+
+- keep a year or more of logs at S3 storage prices
+- answer an audit or compliance request
+- investigate an incident or security event that started before your retention window
+
+Cold Storage archives logs only. Traces and metrics aren't archived. It's available on paid plans.
+
+## How it works
+
+1. **Archive.** An organization Owner connects an S3 bucket for the workspace. Every hour, KloudMate exports that hour's logs to the bucket as Parquet files. The files belong to you: they stay in your bucket, and you can query them with your own tools, such as Amazon Athena.
+2. **Rehydrate.** When you need logs from the archive, pick a time range and, optionally, the services you're interested in. You see an estimate of the size, load time, and charge before anything starts.
+3. **Search.** In the Log Explorer, switch the source from **Live logs** to the rehydration and search it like any other logs. When it expires, KloudMate removes the rehydrated logs. The files in your bucket aren't affected.
+
+## Where to find it
+
+Open **Settings → Cold Storage**.
+
+- **Archive**: connect the bucket, check that exports are working, and see which days are in the archive. Only organization Owners can use this tab.
+- **Rehydrations**: start a rehydration, follow its progress, and see when each one expires.
+
+In the Log Explorer, the **Live logs** button switches between live logs and the rehydrations you can search. See [Search a rehydration](./rehydrate-logs/#search-a-rehydration-in-the-log-explorer).
+
+## Who can do what
+
+| Action | Owner | Developer | Viewer |
+| --- | --- | --- | --- |
+| Connect, verify, replace, disable, or delete the bucket | Yes | No | No |
+| See the archive status and coverage | Yes | No | No |
+| See rehydrations and search them in the Log Explorer | Yes | Yes | Yes |
+| Start, cancel, or delete a rehydration | Yes | Yes | No |
+
+**Owner** is the organization role. **Developer** and **Viewer** are workspace roles.
+
+## Pricing
+
+- **Archiving** has no KloudMate charge. AWS bills your account for storing the files in S3.
+- **Rehydration** costs $0.10 per GB, measured on the volume the workspace originally ingested for the hours you load, not on the compressed Parquet size. For example, loading a day in which the workspace ingested 50 GB of logs costs $5.00. The charge appears on your KloudMate bill as **Log Rehydration**.
+- **Reading files out of S3** during a rehydration is billed by AWS as data transfer. The estimate shows the size that will be read from S3, but its charge covers only KloudMate's part, not AWS's.
+
+## Next steps
+
+- [Archive logs to S3](./archive-logs-to-s3/): connect a bucket and start exporting.
+- [Rehydrate archived logs](./rehydrate-logs/): load a time range back and search it.
+- [Troubleshoot Cold Storage](./troubleshooting/): fix a bucket that stopped working or a rehydration that failed.

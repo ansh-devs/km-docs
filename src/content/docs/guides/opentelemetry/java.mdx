@@ -1,156 +1,187 @@
 ---
 title: "Instrument a Java App"
-description: "Learn how to instrument a sample Java application with OpenTelemetry to send data to KloudMate."
+description: "Instrument a Java application with the OpenTelemetry Java agent, with no code change, and send its traces, metrics, and logs to KloudMate. Covers a JAR, Apache Tomcat, and Docker."
 ---
 
-In this guide, we will walk you through the process of setting up and using OpenTelemetry in Java. You will learn how to instrument a simple Java application to produce traces, metrics, and logs.
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-**Step 1: Prerequisites**
+The OpenTelemetry Java agent instruments a Java application at launch time, with no code change. It attaches to the JVM, traces the frameworks and libraries your application uses, and sends traces, metrics, and logs to KloudMate. You configure it with environment variables.
 
-Before diving into OpenTelemetry, be sure that you have the following installed locally:
+## Instrument a Java application
 
-- Java JDK
-- [Gradle](https://gradle.org/)
+1\. Download the agent JAR. It contains the agent and every automatic instrumentation:
 
-**Step 2: Example Application**
-
-For this tutorial, we will be using a basic [Spring Boot](https://spring.io/guides/gs/spring-boot/) application. However, OpenTelemetry Java is compatible with other web frameworks like Apache Wicket and Play as well. Feel free to adapt the instructions to your preferred framework.
-
-**Step 3: Installation**
-
-1\. Set up an environment in a new directory called `java-simple`. Create a file `build.gradle.kts` in that directory and add the following content to it.
-
-```java
-plugins {
-  id("java")
-  id("org.springframework.boot") version "3.0.6"
-  id("io.spring.dependency-management") version "1.1.0"
-}
-
-sourceSets {
-  main {
-    java.setSrcDirs(setOf("."))
-  }
-}
-
-repositories {
-  mavenCentral()
-}
-
-dependencies {
-  implementation("org.springframework.boot:spring-boot-starter-web")
-}
-
+```bash
+curl -L -o opentelemetry-javaagent.jar \
+  https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar
 ```
 
-2\. Create another file called `DiceApplication.java` in the same directory and add the following content to it:
+Earlier versions are on the [releases page](https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases).
 
-```java
-package otel;
+2\. Set the variables that attach the agent and send its data to KloudMate:
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.Banner;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-
-@SpringBootApplication
-public class DiceApplication {
-  public static void main(String[] args) {
-    SpringApplication app = new SpringApplication(DiceApplication.class);
-    app.setBannerMode(Banner.Mode.OFF);
-    app.run(args);
-  }
-}
-
+```bash
+export JAVA_TOOL_OPTIONS="-javaagent:/path/to/opentelemetry-javaagent.jar"
+export OTEL_SERVICE_NAME="my-java-app"
+export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4318"
 ```
 
-3\. Create another file called `RollController.java` in the same directory and add the following content to it:
-
-```java
-package otel;
-
-import java.util.Optional;
-import java.util.concurrent.ThreadLocalRandom;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-
-@RestController
-public class RollController {
-  private static final Logger logger = LoggerFactory.getLogger(RollController.class);
-
-  @GetMapping("/rolldice")
-  public String index(@RequestParam("player") Optional<String> player) {
-    int result = this.getRandomNumber(1, 6);
-    if (player.isPresent()) {
-      logger.info("{} is rolling the dice: {}", player.get(), result);
-    } else {
-      logger.info("Anonymous player is rolling the dice: {}", result);
-    }
-    return Integer.toString(result);
-  }
-
-  public int getRandomNumber(int min, int max) {
-    return ThreadLocalRandom.current().nextInt(min, max + 1);
-  }
-}
-
-```
-
-4\. Run the application using the following command then open http\://localhost:8080/rolldice in your web browser to ensure it is working.
-
-```java
-gradle assemble
-java -jar ./build/libs/java-simple.jar
-```
-
-**Step 4: Instrumentation**
-
-Now we are going to use Java agent to automatically instrument the application at launch time. We will configure the Java agent using environment variables.
-
-1\. Download the [opentelemetry-javaagent.jar](https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar) from [Releases](https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases) of the `opentelemetry-java-instrumentation` repository. The JAR file contains the agent and all automatic instrumentation packages:
-
-```txt
-https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases
-```
-
-
-2\. Set and export variables that specify the Java agent JAR and a [console exporter.](https://github.com/open-telemetry/opentelemetry-java/blob/main/sdk-extensions/autoconfigure/README.md#logging-exporter)
-
-```txt
-export JAVA_TOOL_OPTIONS="-javaagent:PATH/TO/opentelemetry-javaagent.jar" \
-  OTEL_TRACES_EXPORTER=otlp \
-  OTEL_METRICS_EXPORTER=otlp \
-  OTEL_LOGS_EXPORTER=otlp \
-  OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf \
-  OTEL_EXPORTER_OTLP_ENDPOINT=https://otel.kloudmate.com:4318 \
-  OTEL_EXPORTER_OTLP_HEADERS="Authorization="
-  
-```
+Replace `/path/to` with the folder you downloaded the JAR to, and `my-java-app` with the name you want the service to have in KloudMate.
 
 :::note
-   The exporter URL mentioned above, along with the KloudMate API-Key as the Authorization header will send the data to KloudMate.
+`http://localhost:4318` is the [KloudMate agent](../../../kloudmate-agent/installation/) on the same machine. It receives the data and forwards it to KloudMate with your workspace's API key, so the application needs no key of its own. Install the agent first.
 :::
 
-Replace `PATH/TO` above, with your path to the JAR file.
+3\. Start your application as usual, from the same shell:
 
-3\. Run your application using the following command:
-
-```java
-$ java -jar ./build/libs/java-simple.jar
-...
+```bash
+java -jar my-app.jar
 ```
 
-Note the output from the `otel.javaagent`.
+You can also attach the agent on the command line instead of through `JAVA_TOOL_OPTIONS`: `java -javaagent:/path/to/opentelemetry-javaagent.jar -jar my-app.jar`.
 
-4\. Send a request using `curl` from another terminal. You will see trace & log output from the server and client.
+4\. Check that the agent loaded. The startup output shows lines from `otel.javaagent`, including the agent version. Send a few requests to your application, and the service appears in KloudMate within a minute.
 
-```java
-curl localhost:8080/rolldice
+## Instrument an app on Apache Tomcat
+
+The Java agent works the same way for an application that runs inside Tomcat, with no code change. The difference is where you attach it: Tomcat starts the JVM, so you add the agent to Tomcat's startup options instead of to a `java -jar` command. The agent then traces every request the server handles. OpenTelemetry tests it on Tomcat 7.0 to 10.1 and TomEE 7.0 to 9.1.
+
+1\. Download the agent to a path that Tomcat can read, for example `/opt/opentelemetry`:
+
+```bash
+sudo mkdir -p /opt/opentelemetry
+sudo curl -L -o /opt/opentelemetry/opentelemetry-javaagent.jar \
+  https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar
 ```
 
-5\. Stop the server process to see an output of all the metrics collected.
+2\. Add the agent and the KloudMate settings to Tomcat's startup options. Where they go depends on how Tomcat was installed:
+
+<Tabs>
+<TabItem label="Linux (downloaded)">
+
+Create or edit `<tomcat>/bin/setenv.sh`. Tomcat reads it on every start.
+
+```bash
+CATALINA_OPTS="$CATALINA_OPTS -javaagent:/opt/opentelemetry/opentelemetry-javaagent.jar"
+export OTEL_SERVICE_NAME="my-tomcat-app"
+export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4318"
+```
+
+</TabItem>
+<TabItem label="Linux (apt or yum)">
+
+For a Tomcat installed from a package, add the agent to `JAVA_OPTS` in `/etc/tomcat*/tomcat*.conf`, with the settings as `-D` system properties on the same line.
+
+```bash
+JAVA_OPTS="$JAVA_OPTS -javaagent:/opt/opentelemetry/opentelemetry-javaagent.jar -Dotel.service.name=my-tomcat-app -Dotel.exporter.otlp.endpoint=http://localhost:4318"
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+Create or edit `<tomcat>\bin\setenv.bat`:
+
+```bat
+set CATALINA_OPTS=%CATALINA_OPTS% -javaagent:"C:\opentelemetry\opentelemetry-javaagent.jar"
+set OTEL_SERVICE_NAME=my-tomcat-app
+set OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+```
+
+If Tomcat runs as a Windows service, open `<tomcat>\bin\tomcat*w.exe`, go to the **Java** tab, and add these lines to **Java Options**, one per line:
+
+```txt
+-javaagent:C:\opentelemetry\opentelemetry-javaagent.jar
+-Dotel.service.name=my-tomcat-app
+-Dotel.exporter.otlp.endpoint=http://localhost:4318
+```
+
+</TabItem>
+</Tabs>
+
+Replace `my-tomcat-app` with the name you want the service to have in KloudMate.
+
+3\. Restart Tomcat. On Linux, for a downloaded install:
+
+```bash
+<tomcat>/bin/shutdown.sh
+<tomcat>/bin/startup.sh
+```
+
+For a package install, restart the service instead, for example `sudo systemctl restart tomcat`.
+
+4\. Check that the agent loaded. Tomcat's log (`<tomcat>/logs/catalina.out` on Linux) shows lines from `otel.javaagent`, including the agent version, when the server starts. Send a few requests to your application, and the service appears in KloudMate within a minute.
+
+:::note
+One Tomcat runs every deployed web application in a single JVM, so all of them report under the one service name you set. To see applications as separate services, run them in separate Tomcat instances.
+:::
+
+## Instrument a Java app in Docker
+
+For a containerized application, add the agent to the image and set the service name and endpoint when the container starts, so the same image works in every environment.
+
+<Tabs>
+<TabItem label="Java application (JAR)">
+
+Add the agent to your `Dockerfile` and attach it with `JAVA_TOOL_OPTIONS`, which every JVM reads at startup:
+
+```dockerfile
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+COPY target/my-app.jar app.jar
+ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar /otel/opentelemetry-javaagent.jar
+ENV JAVA_TOOL_OPTIONS="-javaagent:/otel/opentelemetry-javaagent.jar"
+ENTRYPOINT ["java", "-jar", "app.jar"]
+```
+
+</TabItem>
+<TabItem label="Tomcat">
+
+Start from the official Tomcat image, deploy your WAR, and attach the agent through `CATALINA_OPTS`:
+
+```dockerfile
+FROM tomcat:10.1-jre21
+COPY target/my-app.war /usr/local/tomcat/webapps/ROOT.war
+ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar /otel/opentelemetry-javaagent.jar
+ENV CATALINA_OPTS="-javaagent:/otel/opentelemetry-javaagent.jar"
+```
+
+</TabItem>
+</Tabs>
+
+Build the image, then set the service name and endpoint when you run it:
+
+```bash
+docker build -t my-java-app .
+docker run --network host \
+  -e OTEL_SERVICE_NAME=my-java-app \
+  -e OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 \
+  my-java-app
+```
+
+Inside a container, `localhost` is the container itself. `--network host` puts the container on the host's network, so `localhost:4318` reaches the KloudMate agent on the host, and the application's ports open directly on the host without `-p`. On Docker Desktop for Mac or Windows, use `http://host.docker.internal:4318` as the endpoint instead.
+
+With Docker Compose, set `network_mode: host` on the service and the same two variables under its `environment:` key.
+
+:::tip
+The `latest` download URL gives you a different agent version each time the image is rebuilt. For repeatable builds, pin a version instead: `https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v<version>/opentelemetry-javaagent.jar`. The versions are listed on the [releases page](https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases).
+:::
+
+If the KloudMate agent is installed on the host or in your Kubernetes cluster, it can attach the Java agent to your services for you. See [Java auto-instrumentation with the KloudMate agent](../../../kloudmate-agent/auto-instrumentation/java/).
+
+## Configure the agent
+
+Every setting can be given in three ways. If the same setting is given more than once, the first one in this list wins:
+
+- **A system property** on the JVM command line, for example `-Dotel.service.name=my-service`.
+- **An environment variable**, for example `OTEL_SERVICE_NAME=my-service`. To get a variable's name from a property name, uppercase it and replace every `.` and `-` with `_`.
+- **A properties file**, whose path you give in `-Dotel.javaagent.configuration-file` or `OTEL_JAVAAGENT_CONFIGURATION_FILE`. This keeps the settings out of the startup script:
+
+  ```properties
+  otel.service.name=my-tomcat-app
+  otel.exporter.otlp.endpoint=http://localhost:4318
+  ```
+
+The agent sends traces, metrics, and logs over OTLP with `http/protobuf` by default, so the endpoint above is all it needs to reach the KloudMate agent. For every other option, see the OpenTelemetry [agent configuration](https://opentelemetry.io/docs/zero-code/java/agent/configuration/) reference, and check which frameworks and libraries are traced on the [supported libraries](https://opentelemetry.io/docs/zero-code/java/agent/supported-libraries/) page.
 
 ## Java Metrics
 
@@ -172,7 +203,3 @@ curl localhost:8080/rolldice
 | jvm\_memory\_pool\_used         | The current memory pool memory usage                                                               |
 | jvm\_memory\_pool\_committed    | The amount of memory that is guaranteed to be available for the memory pool                        |
 | jvm\_threads\_count             | The current number of threads                                                                      |
-
-***
-
-*Source URL for the example application:* [Getting Started with OpenTelemetry Java](https://opentelemetry.io/docs/languages/java/getting-started/)

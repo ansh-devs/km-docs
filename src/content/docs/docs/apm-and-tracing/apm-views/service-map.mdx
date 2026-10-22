@@ -12,10 +12,15 @@ You can use it to understand service dependencies, traffic flow, and operational
 
 The map is built from distributed traces, so both sources of tracing feed it:
 
-- **[eBPF monitoring](../../../kloudmate-agent/ebpf-observability/)** captures traces at the kernel level with no code change, so an eBPF-covered service appears on the map on its own — on VMs, hosts, and containers. (On [Kubernetes](../../../kloudmate-agent/auto-instrumentation/kubernetes/), eBPF provides the network topology instead, and traces come from the SDK.)
+- **[eBPF monitoring](../../../kloudmate-agent/ebpf-observability/)** captures traces at the kernel level with no code change, so an eBPF-covered service appears on the map on its own. This works on VMs, hosts, and containers, and for [Kubernetes](../../../kloudmate-agent/auto-instrumentation/kubernetes/) workloads set to **eBPF**.
 - **[Auto-instrumentation](../../../kloudmate-agent/auto-instrumentation/overview/)** and the OpenTelemetry SDK produce traces from inside the application.
 
-Each service becomes a node under its `service.name`, and an edge is drawn wherever one service's trace calls another. A service needs a distinct `service.name` to appear as its own node — the agent gives an eBPF-monitored service the same name it carries once auto-instrumented, so it keeps one identity whether eBPF or the SDK is tracing it.
+Each service becomes a node under its `service.name`, and an edge is drawn wherever one service's trace calls another. A service needs a distinct `service.name` to appear as its own node. The agent gives an eBPF-monitored service the same name it carries once auto-instrumented, so it keeps one identity whether eBPF or the SDK is tracing it.
+
+The map also draws calls where only one side is traced:
+
+- **Calls into an eBPF-monitored service from a caller that sends no telemetry**, such as a script or an uninstrumented service. The caller is named after its Kubernetes workload, or shown as `incoming` when it can't be identified.
+- **Calls to a database.** Databases don't send traces, so the calling service's trace is enough to draw the edge.
 
 ## Overview
 
@@ -25,7 +30,7 @@ Open **APM & Services** and select the **Service map** view. You can also open t
 
 Summary chips count the services, external dependencies, dependencies, services with errors, and erroring edges in the selected time range. A service or dependency counts as erroring when its error rate is 0.05% or higher.
 
-The **Service map** view uses the same time range as the **List** view. Click **Refresh** to reload the map with the latest data, and turn on **Show external dependencies** to add the uninstrumented dependencies your services call, such as databases, queues, and third-party hosts.
+The **Service map** view uses the same time range as the **List** view. Click **Refresh** to reload the map with the latest data, and turn on **Show external dependencies** to add the uninstrumented hosts your services call, such as third-party APIs, message queues, and managed databases outside your cluster. Databases running inside your cluster appear without the switch.
 
 The main area displays the **Service Dependency Graph**. Each service is represented as a node showing its name, protocol, request rate, and average latency. The directed edges between nodes represent the call flow and dependencies between services.
 

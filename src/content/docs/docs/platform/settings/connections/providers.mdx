@@ -12,12 +12,12 @@ Each provider decides how you supply its credential and what a connection to it 
 
 | Provider | Credential | Can be used for |
 |---|---|---|
-| **AWS** | Assume Role with a role ARN and external ID (recommended), or an access key pair. A default region comes with it, and a workflow step can override it. | Workflows, AI |
+| **AWS** | Access keys: an access key ID and a secret access key. A default region comes with it, and a workflow step can override it. | Workflows, AI |
 | **Azure** | A service principal: directory (tenant) id, application (client) id, client secret, and a default subscription id. | Workflows |
 
 Both allow more than one connection, so a production account and a staging account are two rows.
 
-The IAM policy or Azure role assignment on the credential decides what a step can do with it. There's no second permission list inside KloudMate, so narrow the role itself. Gate risky steps with an [approval](/workflows/approvals-and-input/).
+The IAM policy on the AWS keys, or the Azure role assignment, decides what a step can do with the credential. There's no second permission list inside KloudMate, so narrow the policy or the role itself, and create a separate connection with its own keys for each job. Gate risky steps with an [approval](/workflows/approvals-and-input/).
 
 :::note
 This isn't the same as the AWS account you connect for inventory and metrics. That one lives under [Settings → Data Sources](/platform/settings/data-sources/) and doesn't appear in the Connections list. Connect AWS here when a workflow step needs to call an AWS API, or when the AI assistant needs AWS as a tool.
@@ -34,23 +34,35 @@ One Slack install serves alert notifications, incident ChatOps, the [Slack workf
 
 One Jira credential can access several Atlassian sites, which is why every Jira action and trigger starts with a site picker.
 
+## Meetings
+
+These create the conference call for an incident [war room](/incident-management/war-rooms/). The war room settings list only connections that can be used for **Meetings**.
+
+| Provider | Credential | Can be used for |
+|---|---|---|
+| **Microsoft 365 / Teams** | Microsoft sign-in, as the service account that should own the rooms and meetings. | Notifications, Meetings |
+| **Google Workspace** | Google sign-in, as the Workspace account that should own the meeting spaces. | Meetings |
+| **Zoom** | An install of the KloudMate app, from a Licensed Zoom account. | Meetings |
+
+One Microsoft 365 connection covers both the Teams war room chat and its meeting. Meetings hosted by a Basic Zoom account end after 40 minutes, so install the Zoom app from a Licensed account. See [Set up war rooms](/incident-management/war-rooms/setup/#add-a-conference-call) for what each provider adds to a room.
+
 ## Tools and custom endpoints
 
 | Provider | Credential | Can be used for |
 |---|---|---|
-| **Custom MCP Server** | A server URL, a transport of Streamable HTTP or SSE, and either no auth, a bearer token, or an API key in a header you name. Extra headers can be sent alongside, for a server that wants a routing header as well as a credential. | Workflows |
+| **Custom MCP Server** | A server URL, a transport of Streamable HTTP or SSE, and one **Authentication** option: **None**, **Bearer token**, **Basic auth** (a username and a password or API token), **API key** (sent in a header you choose), or **OAuth** (sign in on the server's own page). Extra headers can be sent alongside, for a server that wants a routing header as well as a credential. | Workflows, AI |
 | **OAuth 2.0** | Your own authorize and token URLs, scopes, client id, and client secret, with either the client-credentials or the authorization-code grant. | Workflows |
 
 Use **OAuth 2.0** to give an [HTTP Request](/workflows/actions/#http-request) step a credential that's refreshed for you and never stored in the workflow definition.
 
 ## AI assistant tools
 
-These connect an MCP server that the [KloudMate Assistant](/kloudmate-assistant/) can call as a tool. They can be used for **AI** only, which also makes them the only connections that can be [private](../connect-an-account/#visibility).
+These connect an MCP server that the [KloudMate Assistant](/kloudmate-assistant/) can call as a tool. They can be used for **AI** only. Any connection that's used only for **AI** can be [private](../connect-an-account/#visibility), including an AWS or Custom MCP Server connection.
 
 | Provider | Credential |
 |---|---|
 | **GitHub** | A GitHub token. |
-| **Atlassian** | An Atlassian API token. |
+| **Atlassian** | A scoped personal API token or a service account API key. See [Atlassian](../atlassian/). |
 | **Sentry** | OAuth. |
 | **Google Cloud BigQuery** | Google OAuth. |
 | **Google Cloud Compute Engine** | Google OAuth. |
@@ -59,7 +71,9 @@ These connect an MCP server that the [KloudMate Assistant](/kloudmate-assistant/
 | **Google Cloud Monitoring** | Google OAuth. |
 | **Google Cloud Resource Manager** | Google OAuth. |
 
-AWS can also be used for **AI**, with an access key pair. See the cloud table above.
+An Atlassian personal API token needs the agent-interface scopes for the tools you want, such as `read:jira:agent-interface`. A token with only REST API scopes can't call tools. Before either kind of Atlassian credential works, an Atlassian organization admin must allow API tokens under **Atlassian Administration > Rovo > Rovo MCP server > Authentication**.
+
+AWS and Custom MCP Server can also be used for **AI**. See the tables above.
 
 ## Providers in your plan
 

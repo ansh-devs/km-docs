@@ -1,0 +1,106 @@
+---
+title: "Upgrade the agent"
+description: "Upgrade the KloudMate agent from the dashboard with one click, or manually on Linux, Windows, Docker, and Kubernetes."
+sidebar:
+  order: 13
+---
+
+You can upgrade agents running version 2.5.0 or later from the dashboard with one click. The agent downloads the new release, verifies it, installs it, and rolls itself back if the new version doesn't come up healthy. When one-click upgrade isn't available for an agent, upgrade it manually with the same command you installed it with.
+
+The bundled instrumentation agents are versioned with the KloudMate agent, so they upgrade together.
+
+## Upgrade from the dashboard
+
+1. Open **Settings → Agents**. An agent with a newer release has an **Update available** tag in the **Agent Version** column.
+2. Click the agent to open its page.
+3. In the **Agent version** card, click **Upgrade to vX.Y.Z** and confirm.
+
+The agent picks up the request on its next check-in, within a minute, and most upgrades finish in one to two minutes. A Kubernetes cluster takes longer, because the node agents restart one node at a time.
+
+### What happens during an upgrade
+
+- The agent downloads the new release from GitHub and checks it against a signing key built into the agent. A package that fails the check is never installed.
+- Before installing, the agent also downloads the package for the version it's running now, so it always has a way back.
+- After installing, the new version has 5 minutes to start and check in. If it doesn't, the previous version is reinstalled, and the agent's page shows why the upgrade failed.
+
+On Kubernetes, Helm rolls the release back if the new pods don't become ready. On Docker, the agent's container is recreated with the same settings on the new image, and the old container is started again if the new one doesn't come up.
+
+:::note
+One-click upgrade needs agent version **2.5.0 or later**. Upgrade an older agent [manually](#upgrade-manually) once, and later releases can then be applied from the dashboard.
+:::
+
+### When the Upgrade button is disabled
+
+Hover over the button to see why. The usual causes and fixes:
+
+| Cause | Fix |
+|---|---|
+| Remote upgrades are turned off on the host. | Remove the setting described in [Turn off one-click upgrade on a host](#turn-off-one-click-upgrade-on-a-host), or upgrade manually. |
+| The host can't reach the release download host. | Allow outbound HTTPS to `github.com`, `release-assets.githubusercontent.com`, and `objects.githubusercontent.com`. See [Before you start](../installation/before-you-start/). |
+| The Helm chart was installed with `selfUpdate.enabled=false`. | Set it to `true` with `helm upgrade`, or upgrade manually. |
+| The cluster is managed by Argo CD or Flux. | Upgrade the chart through your GitOps repository. |
+| The container is part of a Docker Compose project or a Swarm service. | Change the image in the Compose file or service definition, and redeploy. |
+| The container doesn't run the official `ghcr.io/kloudmate/km-agent` image, or doesn't have the Docker socket mounted. | Recreate the container with the KloudMate Docker install command. |
+| The Docker host is arm64. | Upgrade manually. One-click upgrade for Docker agents works on amd64 hosts. |
+
+Agents on Amazon ECS can't be upgraded from the dashboard. Redeploy the task with the new image.
+
+### Turn off one-click upgrade on a host
+
+To block dashboard upgrades on a Linux or Windows host, set `KM_ALLOW_REMOTE_UPGRADE=false` in the agent's environment and restart it. On Linux:
+
+```bash
+sudo systemctl edit kmagent
+```
+
+Add these lines, save, and run `sudo systemctl restart kmagent`:
+
+```ini
+[Service]
+Environment=KM_ALLOW_REMOTE_UPGRADE=false
+```
+
+On Kubernetes, install or upgrade the chart with `--set selfUpdate.enabled=false`.
+
+## Upgrade manually
+
+Run the install command again. The install script always fetches the latest release, so the command you used to install the agent also upgrades it. Copy the install command for your platform from **Settings → Agents → Add Agent**, using the same API key and collector endpoint as the existing agent.
+
+### Linux
+
+Run the Linux install command on the host. The script downloads the latest `.deb` or `.rpm` package, installs it over the old one, and restarts the `kmagent` service.
+
+Your existing `/etc/kmagent/agent.yaml` is kept as it is, including any settings you've added by hand.
+
+### Windows
+
+Download the latest installer from **Settings → Agents → Add Agent → Windows** and run it from an elevated (Administrator) PowerShell prompt:
+
+```powershell
+.\kmagent-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+```
+
+The installer stops the `kmagent` service, replaces the files, and starts the service again. Your existing `C:\ProgramData\kmagent\agent.yaml` is kept. Pass `/APIKEY=YOUR_API_KEY /ENDPOINT=https://otel.kloudmate.com:4318` only if you want to replace that file with a new API key and endpoint.
+
+### Docker
+
+Run the Docker install command on the host. The script pulls `ghcr.io/kloudmate/km-agent:latest`, removes the old `km-agent` container, and starts a new one. When it asks about additional log directories, give the same answers as the first time, or those directories won't be mounted into the new container.
+
+### Kubernetes
+
+Refresh the chart repository, then upgrade the release. `--reset-then-reuse-values` keeps the values you installed with and picks up the new chart's defaults (it needs Helm 3.14 or later):
+
+```bash
+helm repo update
+helm upgrade kloudmate-release kloudmate/km-kube-agent \
+  --namespace km-agent \
+  --reset-then-reuse-values
+```
+
+On an older Helm, rerun the Helm command from the install wizard with `helm install` changed to `helm upgrade --install`, and pass the same `--set` flags you installed with.
+
+Each chart version ships the matching agent image, so upgrading the chart rolls every agent pod to the new version.
+
+## Confirm the upgrade
+
+Open **Settings → Agents** and check the **Agent Version** of the upgraded agent. If it still shows the old version or the agent goes offline, see [Troubleshooting](../troubleshooting/).

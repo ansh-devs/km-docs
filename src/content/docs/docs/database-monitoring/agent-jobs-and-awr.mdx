@@ -15,12 +15,15 @@ The **Agent jobs** tab lists the SQL Server Agent job runs in the time range, so
 
 Each run shows the job name, its status, when it ran, how long it took, and the message it logged. Expand a run to read the full message.
 
-To collect job runs, turn on the **Agent jobs** coverage for the instance in the agent's database monitoring settings. The monitoring login needs the `SQLAgentReaderRole` role in the `msdb` database:
+To collect job runs, turn on the **Agent jobs** coverage for the instance in the agent's database monitoring settings. The monitoring login needs read access to the job tables in the `msdb` database:
 
 ```sql
 USE msdb;
 CREATE USER [kloudmate] FOR LOGIN [kloudmate];
-ALTER ROLE SQLAgentReaderRole ADD MEMBER [kloudmate];
+GRANT SELECT ON dbo.sysjobs TO [kloudmate];
+GRANT SELECT ON dbo.sysjobhistory TO [kloudmate];
+GRANT SELECT ON dbo.sysjobactivity TO [kloudmate];
+GRANT EXECUTE ON dbo.agent_datetime TO [kloudmate];
 ```
 
 Replace `kloudmate` with your monitoring login. Skip the `CREATE USER` line if the login already has a user in `msdb`.

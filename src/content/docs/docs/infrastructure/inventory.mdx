@@ -38,11 +38,22 @@ The **All resources** tab lists each resource with its **Name**, **Type**, **Whe
 **Where** shows where the resource lives:
 
 - A cloud resource shows its region and account.
-- A Kubernetes object shows its cluster and namespace.
+- A Kubernetes object shows its cluster, and its namespace when it has one.
 - A database shows the address and port that clients connect to.
 - Hosts and services leave it empty.
 
-Resources that the agent reports leave the list when they haven't been seen for 2 hours. Cloud resources stay until a sync finds they're gone. Inventory doesn't list containers, network endpoints, or storage mounts.
+Inventory doesn't list containers, network endpoints, or storage mounts.
+
+## How often Inventory updates
+
+Inventory checks each source on a schedule, not all the time. **Last seen** shows when a check last found the resource, not when the resource last sent data.
+
+- **Resources the agent reports** (hosts, Kubernetes objects, services, and databases): checked once an hour, so their **Last seen** can be up to an hour old.
+- **AWS resources:** synced every 30 minutes in the account's [primary regions](../../platform/settings/data-sources/#primary-regions) and about once a day in other regions. Use [Sync now](../../platform/settings/data-sources/#sync-now) to sync an account right away.
+
+The page doesn't refresh by itself. Reload it to see the latest values.
+
+Resources that the agent reports leave the list when they haven't been seen for 2 hours. A resource that stops sending data leaves about 2 to 3 hours later. Cloud resources stay until a sync finds they're gone.
 
 ## Open a resource
 

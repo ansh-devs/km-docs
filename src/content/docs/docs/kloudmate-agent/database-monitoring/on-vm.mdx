@@ -1,43 +1,72 @@
 ---
 title: "Database monitoring on a VM"
-description: "How the KloudMate agent monitors databases on a Linux or Windows host, covering databases on the host and reachable remote databases."
+description: "Set up database monitoring from a KloudMate agent on a Linux or Windows host, for databases on the host or reachable from it."
 sidebar:
   order: 3
 ---
 
 import { Steps, LinkCard, CardGrid } from '@astrojs/starlight/components';
 
-On a virtual machine, the agent monitors databases running on the host or reachable from it. For the general flow, see the [Database monitoring overview](../overview/).
+An agent on a virtual machine can monitor databases running on the same host, and databases on other hosts it can reach over the network. This page walks you through adding one. For how coverages and the wizard work, see the [Database monitoring overview](../overview/).
 
 ## What you can monitor
 
-- **Databases on the host:** a database listening on the host is discovered and prefilled in the wizard.
-- **Reachable remote databases:** you can also monitor a database on another host by entering its endpoint and credentials in the wizard.
+- **Databases on the host.** The agent discovers databases running on the host, including in containers, and lists them under **Discovered on this host**.
+- **Remote databases.** A database on another host, or a managed service such as Amazon RDS, can be monitored from any agent that can reach it. Add it with **Add database** and enter its endpoint.
 
-On a virtual machine, you can collect the full set of coverages, including database logs. See [Engines and coverages](../engines-and-coverages/).
+Every coverage is available on a VM, including log file coverages such as PostgreSQL server logs and the MySQL slow query log. Log file coverages read files on the agent's host, so they only work for a database on that host.
 
 ## How local databases are identified
 
-A database on the host often listens on `localhost`. That address is not unique across your servers. So the agent identifies the database by the host's routable address instead, which keeps its metrics and traces lined up. See [Telemetry identity](../../reference/telemetry-identity/) for how to build dashboards on a database's server address.
+A database on the host often listens on `localhost`, which isn't unique across your servers. The agent identifies it by the host's routable address instead, so its metrics and traces line up. A database the agent reaches on the same host also gets host CPU, memory, and disk counted toward its health. See [Telemetry identity](../../reference/telemetry-identity/).
 
 ## Set up monitoring
 
 <Steps>
-1. **Open the wizard** from a discovered database, or add one manually with its endpoint.
+1. **Make sure the agent is in managed config mode.** In **Settings → Agents**, open the agent. If the **Databases** tab asks you to switch to managed, click **Switch to managed**. Manual edits to the collector configuration are replaced.
 
-2. **Choose coverages** for the depth you want. See [Engines and coverages](../engines-and-coverages/).
+2. **Open the wizard.** On the **Databases** tab, click **Monitor** next to a discovered database, or **Add database** for one that wasn't discovered. You can also start from **Databases → Monitor a database**.
 
-3. **Provide credentials** for the monitoring user, using an environment reference by default. See [Database credentials](../credentials/).
+3. **Choose coverages.** **Standard metrics** is always on. Turn on the others you need. See [Engines and coverages](../engines-and-coverages/).
 
-4. **Apply the setup steps** the wizard shows, such as creating the monitoring role and granting it the right permissions.
+4. **Run the setup steps** the wizard shows on the database, such as creating the monitoring user and its grants.
 
-5. **Save.** The agent applies the configuration and starts collecting.
+5. **Fill in the connection.** Enter the endpoint, such as `localhost:5432`. Discovery fills in the engine and instance name but not the endpoint. Then enter the monitoring user and choose how to provide the password. See [Database credentials](../credentials/).
+
+6. **Click Save and apply.** Data starts arriving within a minute.
 </Steps>
+
+:::note
+After you add one database of an engine, other discovered databases of the same engine disappear from **Discovered on this host**. To monitor a second PostgreSQL on the same host, use **Add database** and give it a distinct **Instance name**.
+:::
+
+## Worked example: PostgreSQL on the host
+
+<Steps>
+1. **Create the monitoring user** in PostgreSQL:
+
+   ```sql
+   CREATE USER kmmonitor WITH PASSWORD 'YOUR_PASSWORD';
+   GRANT pg_monitor TO kmmonitor;
+   ```
+
+2. **Enable `pg_stat_statements`** for query performance. Add it to `shared_preload_libraries` in `postgresql.conf`, restart PostgreSQL, then run this in each database you monitor:
+
+   ```sql
+   CREATE EXTENSION pg_stat_statements;
+   ```
+
+3. **Set the password variable** for the agent. With the default environment variable mode and no instance name, the wizard reads `KM_SECRET_POSTGRESQL_PASSWORD`. On Linux, add it to the agent's environment file and restart the agent. See [Database credentials](../credentials/#set-the-variable-on-a-host).
+
+4. **Open the wizard** from the discovered PostgreSQL database. Turn on **Query performance**, **Instance info**, and **Schema catalog**, enter `localhost:5432` as the endpoint and `kmmonitor` as the user, and click **Save and apply**.
+</Steps>
+
+The instance appears in the [Databases module](../../../database-monitoring/) within a minute.
 
 ## Next steps
 
 <CardGrid>
   <LinkCard title="Engines and coverages" href="../engines-and-coverages/" description="Choose the coverages for your engine." />
-  <LinkCard title="Credentials" href="../credentials/" description="Provide the monitoring user's credentials." />
+  <LinkCard title="Credentials" href="../credentials/" description="Provide the monitoring user's password." />
   <LinkCard title="On Kubernetes" href="../on-kubernetes/" description="Monitor in-cluster databases instead." />
 </CardGrid>

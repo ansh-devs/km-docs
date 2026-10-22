@@ -34,7 +34,7 @@ Annotation tracking is the default from Argo CD 3.0. On an older version, set `a
 
 ## Check whether a workload is externally managed
 
-Go to **Settings → Agents**, open the cluster agent's actions menu (⋮), and select **Configure**. On the **APM** tab, the **Application instrumentation** card shows **Managed by Argo CD** or **Managed by Flux** on each workload that one of them manages. Other workloads work as usual, even on a cluster that runs Argo CD.
+Go to **Settings → Agents**, open the cluster agent's actions menu (⋮), and select **Configure**. On the **APM** tab, the **Application instrumentation** card shows **Managed by Argo CD** or **Managed by Flux** on a managed workload once you set it to **eBPF** or **SDK** and the agent checks in. A workload left at **Off** doesn't carry the label, but a banner at the top of the card tells you when Argo CD runs in the cluster. Other workloads work as usual, even on a cluster that runs Argo CD.
 
 ## Turn on eBPF mode
 
@@ -71,6 +71,7 @@ Keep these limits in mind:
 - **Every pod in the namespace gets injected**, including short-lived jobs.
 - **One runtime per namespace.** The annotation sets a single language. If a namespace holds a Java service and a Python service, this covers only one of them.
 - **.NET runtime options come from the pod only.** If a .NET workload needs one, put it on that workload's pod template.
+- **The workloads show Off in Application instrumentation.** The agent didn't add the annotation, so it doesn't track these workloads, but their traces still reach KloudMate.
 
 ## Commit the annotation
 
@@ -132,6 +133,16 @@ helm upgrade kloudmate-release kloudmate/km-kube-agent \
   --set patchExternallyManagedWorkloads=true
 ```
 
+If Argo CD installs the agent, as in [Install the agent on a GitOps cluster](#install-the-agent-on-a-gitops-cluster), set the value in the agent's Application instead. Argo CD reverts a `helm upgrade` to the values in the Application:
+
+```yaml
+spec:
+  source:
+    helm:
+      valuesObject:
+        patchExternallyManagedWorkloads: true
+```
+
 This value applies to the whole cluster. If an Application doesn't have the settings above, Argo CD reverts the annotation and the Application's pods keep restarting. With the value on, workloads that Argo CD manages no longer show **Managed by Argo CD** in **Application instrumentation**. They show their usual instrumentation status instead.
 
 These steps are for Argo CD. On Flux, exclude the same annotations from drift correction before you turn on `patchExternallyManagedWorkloads`, or Flux reverts the agent's changes.
@@ -162,7 +173,17 @@ spec:
               instrumentation.opentelemetry.io/inject-java: km-agent/km-agent-instrumentation-crd
 ```
 
-Argo CD and Flux compare Deployments, not the pods those Deployments create, so a policy that annotates pods never shows up as drift. The OpenTelemetry documentation suggests the same pattern, and KloudMate needs no configuration for it. As with the namespace annotation, running pods get the annotation when they're recreated.
+Argo CD and Flux compare Deployments, not the pods those Deployments create, so a policy that annotates pods never shows up as drift. The OpenTelemetry documentation suggests the same pattern. As with the namespace annotation, running pods get the annotation when they're recreated, and the workloads show **Off** in **Application instrumentation** while their traces still reach KloudMate.
+
+The OpenTelemetry Operator injects the SDK from its own admission webhook, which Kubernetes calls once per pod. That webhook has to run after Kyverno's, or it never sees the annotation. km-kube-agent charts released after 2.5.1 order the webhooks this way. On an older chart, set the order yourself:
+
+```bash
+helm upgrade kloudmate-release kloudmate/km-kube-agent \
+  --namespace km-agent --reuse-values \
+  --set opentelemetry-operator.admissionWebhooks.namePrefix=zz
+```
+
+Without it, pods get the annotation but no SDK, and nothing reports an error.
 
 ## Install the agent on a GitOps cluster
 
@@ -170,7 +191,7 @@ Install the agent with Helm, as shown in the [Kubernetes installation guide](../
 
 To manage the agent through Argo CD instead, set these on its Application:
 
-- **`ignoreDifferences` on the agent's own ConfigMaps.** The agent writes each collector's live configuration into the `/data/agent-daemonset.yaml` and `/data/agent-deployment.yaml` keys of `km-agent-configmap-daemonset` and `km-agent-configmap-deployment`. Argo CD renders the chart without reading the cluster, so without this setting, every sync resets the collectors to the configuration in the chart.
+- **`ignoreDifferences` on the agent's own ConfigMaps, with `RespectIgnoreDifferences=true`.** The agent writes each collector's live configuration into the `/data/agent-daemonset.yaml` and `/data/agent-deployment.yaml` keys of `km-agent-configmap-daemonset` and `km-agent-configmap-deployment`. Argo CD renders the chart without reading the cluster, so it sees that configuration as drift. `ignoreDifferences` stops Argo CD from reporting it, and `RespectIgnoreDifferences=true` stops a sync from writing the chart's configuration over it. Without the sync option, any change to the Application, such as a new chart version or a Helm value, resets the collectors and drops the cluster's eBPF and SDK selections until the next **Apply** in KloudMate.
 - **The destination namespace set to `km-agent`.** The chart always creates the Instrumentation resource in `km-agent`, and the inject annotation points to it as `km-agent/km-agent-instrumentation-crd`.
 - **`SkipDryRunOnMissingResource=true`** in the sync options. On the first sync, Argo CD applies the Instrumentation resource in the same wave that installs the OpenTelemetry Operator's CRDs, and the dry run fails without this option.
 
@@ -181,6 +202,7 @@ spec:
   syncPolicy:
     syncOptions:
       - SkipDryRunOnMissingResource=true
+      - RespectIgnoreDifferences=true
   ignoreDifferences:
     - group: ""
       kind: ConfigMap

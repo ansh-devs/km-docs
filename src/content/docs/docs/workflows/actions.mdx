@@ -109,7 +109,7 @@ The step returns AWS's response under `result`, so a later step reads a field as
 
 Changing the connection clears the region, changing the service clears the action and the parameters, and changing the action clears the parameters.
 
-The IAM policy on the credential decides what the step is allowed to do. There's no second permission list in KloudMate, so narrow the role itself. Put an [approval](../approvals-and-input/) in front of anything that changes a resource.
+The IAM policy on the credential decides what the step is allowed to do. There's no second permission list in KloudMate, so narrow the IAM policy itself. Put an [approval](../approvals-and-input/) in front of anything that changes a resource.
 
 ### Azure
 
@@ -287,7 +287,7 @@ The extracted fields are at the top level of the step output, so a later step re
 Runs the [KloudMate Assistant](/kloudmate-assistant/) on a prompt and returns its answer. It's the same Assistant you chat with, so it can query your telemetry. For example, use it to look into an alert before the workflow posts about it.
 
 - **Prompt** says what to find out or do. The Assistant can't ask you questions, so say which service and time range to look at, and what you want back.
-- **MCP Integrations** is optional. Pick integrations to give the Assistant their tools, which it runs without asking for approval. Only integrations shared with the workspace are listed. Tools set to **Ask before run** are off. Manage the tools in [Assistant → MCP Integrations](/kloudmate-assistant/settings/#tool-level-settings).
+- **MCP Integrations** is optional. Pick integrations to give the Assistant their tools. Only integrations shared with the workspace are listed. Nobody can approve a tool during a run, so the Assistant uses only the enabled tools labeled **Read**, and runs them without asking. Manage the tools in [Assistant → MCP Integrations](/kloudmate-assistant/settings/#choose-the-tools-the-assistant-can-use).
 
 For an alert trigger, a prompt could look like this:
 

@@ -6,7 +6,7 @@ sidebar:
   order: 4
 ---
 
-Every action here is on the row menu in **Settings → Connections**, and all of them need the **Developer** role. A row that needs attention also has its fix beside its status: **Authorize**, **Reconnect**, or **Edit**.
+Every action here is on the row menu in **Settings → Connections**. They need the **Developer** role, except on a private connection you created for the Assistant, as [Who can manage a connection](#who-can-manage-a-connection) explains. A row that needs attention also has its fix beside its status: **Authorize**, **Reconnect**, or **Edit**.
 
 ## Edit
 
@@ -14,7 +14,7 @@ Every action here is on the row menu in **Settings → Connections**, and all of
 
 Rotate a credential the same way: type the new value and save. To keep a stored secret, leave its field blank. When you save a changed credential or setting, KloudMate checks the connection against the provider again.
 
-You can't change the provider or the authentication method after you create a connection, so an AWS connection made with access keys can't switch to a role. Connect a new one instead.
+You can't change the provider or the authentication method after you create a connection. For example, a custom MCP server that uses a bearer token can't switch to OAuth. Connect a new one instead.
 
 :::caution
 Changing **Can be used for** can break things that are already working. Removing a capability stops every use that depends on it at the next call. Adding one can mark the connection **Needs reconnect** until you approve the extra permissions, and you can't add a capability the provider is no longer offered for.
@@ -26,9 +26,13 @@ Changing **Can be used for** can break things that are already working. Removing
 
 A connection that fails the check becomes **Degraded**. That's a warning, not an outage: workflow steps and dashboard queries still run through it. App-event triggers are the exception, and pause until it verifies again.
 
+To see why the last check failed, point to **Degraded** in the connections list.
+
 ## Reconnect
 
-**Reconnect** re-runs the OAuth approval and rotates the credential in place. The connection keeps its id, so every workflow, channel, and dashboard that uses it keeps working. Slack, Jira Cloud, Sentry, the Google Cloud providers, and an OAuth 2.0 connection that uses the authorization-code grant have it. For the other providers, use **Edit** instead. While a connection's first approval is unfinished, the action is called **Authorize**.
+**Reconnect** re-runs the OAuth approval and rotates the credential in place. The connection keeps its id, so every workflow, channel, and dashboard that uses it keeps working. Slack, Jira Cloud, Sentry, the Google Cloud providers, a custom MCP server that uses **OAuth**, and an OAuth 2.0 connection that uses the authorization-code grant have it. For the other providers, use **Edit** instead. While a connection's first approval is unfinished, the action is called **Authorize**.
+
+A custom MCP server's sign-in belongs to its server URL. If you change the URL, reconnect the connection before anything uses it again.
 
 **Needs reconnect** shows one of these reasons when you hover over it:
 
@@ -74,6 +78,8 @@ When nothing uses the connection, deleting asks for confirmation, and you can't 
 A **workspace** connection belongs to the workspace, so anyone with the **Developer** role can edit, rotate, or delete it, and it keeps working after the person who connected it leaves.
 
 Only the creator can edit or rotate a **private** connection. An organization **Owner** can still delete one, so a workspace isn't stuck when someone leaves.
+
+You don't need the **Developer** role to manage a private connection you created that's used only for **AI**, such as your own GitHub token for the Assistant. You can edit, re-check, reconnect, and delete it. Sharing it with the workspace, or adding another capability, needs the **Developer** role.
 
 When someone leaves the organization or the workspace, their workspace connections keep working and lose their owner. KloudMate deletes their private connections.
 
