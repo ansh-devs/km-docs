@@ -1,0 +1,150 @@
+---
+title: "Zoom"
+description: "Install the KloudMate app for Zoom so every incident war room opens with its own Zoom meeting, and remove it when you no longer need it."
+sidebar:
+  label: "Zoom"
+  order: 6
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+The KloudMate app for Zoom creates a Zoom meeting for each incident war room. When a war room opens, KloudMate creates the meeting and adds a **Join Call** button to the room, so responders can join the call straight from Slack, Microsoft Teams, or the incident in KloudMate.
+
+Every meeting is hosted by the Zoom user who installs the app. KloudMate uses the app only to create those meetings and to read that user's basic profile. It doesn't read your other meetings, recordings, chats, or contacts.
+
+## Before you start
+
+- Your KloudMate plan includes Incident Management.
+- You have the **Developer** role in the KloudMate workspace.
+- War rooms are set up for Slack or Microsoft Teams. See [Set up war rooms](/incident-management/war-rooms/setup/).
+- You have a **Licensed** Zoom account to install the app from. Zoom ends meetings hosted by a Basic (free) account after 40 minutes, which would cut an incident call off partway through. Use a shared account such as `incidents@example.com` rather than a person's account, so war room meetings don't depend on one person's Zoom user.
+
+## Permissions
+
+The app asks Zoom for these scopes:
+
+| Scope | What KloudMate uses it for |
+|---|---|
+| `meeting:write:meeting` | Create a meeting for each war room, hosted by the user who installed the app. |
+| `user:read:user` | Read that user's email address, account type, and Zoom user ID. The email address labels the connection in KloudMate, and the account type tells KloudMate whether the account is Licensed. |
+
+## Add the app
+
+Start the install from KloudMate, in the workspace that will use it. If you found the app on the Zoom App Marketplace, sign in to KloudMate and follow these steps.
+
+<Steps>
+
+1. In KloudMate, go to **Settings → Connections** and click **Connect**.
+
+2. Select **Zoom** and enter a **Connection name**, for example `Zoom war rooms`.
+
+3. Click **Connect**. Zoom's sign-in page opens.
+
+4. Sign in to Zoom as the Licensed user that should host war room meetings.
+
+5. Review the permissions and click **Allow**.
+
+6. Back in **Settings → Connections**, open the row menu on the new Zoom connection and click **Re-check**.
+
+</Steps>
+
+**Re-check** confirms the Zoom account is Licensed. If it isn't, the connection shows **Degraded**. See [The connection shows Degraded](#the-connection-shows-degraded).
+
+## Create a meeting for each war room
+
+<Steps>
+
+1. Go to **Incidents → Chat Ops** and find **Incident War Rooms**.
+
+2. Under **Conference call**, select **A new meeting per incident**.
+
+3. Select the Zoom connection under **Select meeting connection**.
+
+4. Click **Save war room settings**.
+
+</Steps>
+
+From then on, every war room opens with its own Zoom meeting. That's true whether you start the room from the incident, or a routing rule or escalation step opens it for you. Responders join with the **Join Call** button on the war room card in Slack or Teams, or on the incident's war room panel in KloudMate.
+
+Each meeting is named `[KloudMate] War Room:` followed by the incident title. It has no fixed start time, so the link stays valid for as long as the incident runs. KloudMate turns on join before host and turns off the waiting room, so responders can join without waiting for the host. Zoom war rooms don't include a dial-in number.
+
+The meetings appear in the host user's list of meetings in Zoom, like any other meeting they've scheduled.
+
+:::caution
+Settings locked at the Zoom account level override what KloudMate asks for. If your Zoom admin has locked the waiting room on, or requires participants to sign in, responders will hit those settings when they join.
+:::
+
+## Troubleshooting
+
+### The connection shows Degraded
+
+Point to **Degraded** in the connections list to see why the last check failed.
+
+| The message says | What to do |
+|---|---|
+| `<email> is a Zoom type 1 account` | The app was installed from a Basic Zoom account, so meetings end after 40 minutes. Upgrade that user to a Licensed account in Zoom, then click **Re-check**. To use a different Zoom user instead, see [Change the Zoom user that hosts meetings](#change-the-zoom-user-that-hosts-meetings). |
+| `Zoom connection holds no access token. Reconnect it.` | Click **Reconnect** beside the connection and sign in to Zoom again. |
+| Any other message | It's an error from Zoom, for example a deactivated user. Fix it in Zoom, then click **Re-check**. |
+
+### Change the Zoom user that hosts meetings
+
+**Reconnect** only accepts the same Zoom user that installed the app. To move meetings to a different user, [add the app](#add-the-app) again as that user, select the new connection under **Select meeting connection**, and then [delete the old connection](#delete-the-connection-in-kloudmate).
+
+### A war room opened without a Join Call button
+
+KloudMate couldn't create the meeting, but it still opened the room and invited everyone. Check the Zoom connection in **Settings → Connections**. It might be **Revoked** because someone removed the app in Zoom, switched off, or deleted.
+
+For the incident in front of you, add the link by hand. See [The room opened without a Join Call button](/incident-management/war-rooms/troubleshooting/#the-room-opened-without-a-join-call-button).
+
+### Responders land in a waiting room or can't join
+
+In the Zoom web portal, open the host user's meeting settings and check the waiting room, join before host, and authentication settings. If a setting is locked, a Zoom account admin has to change it at the account level.
+
+### Calls end after 40 minutes
+
+The host user has a Basic Zoom account. Follow the first row in [The connection shows Degraded](#the-connection-shows-degraded).
+
+## Remove the app
+
+To disconnect Zoom completely, remove the app in Zoom and delete the connection in KloudMate. Before you do, change **Conference call** under **Incidents → Chat Ops** to another option, so new war rooms don't open without a call link.
+
+### Remove the app from Zoom
+
+<Steps>
+
+1. Sign in to the [Zoom App Marketplace](https://marketplace.zoom.us/) as the user who installed the app.
+
+2. Click **Manage**, then **Added Apps**.
+
+3. Find **KloudMate** and click **Remove**.
+
+</Steps>
+
+Zoom then tells KloudMate the app was removed. KloudMate erases the stored Zoom access token, along with the Zoom email address and user ID it recorded, then marks the connection **Revoked** and switches it off. If the same Zoom user installed the app in more than one KloudMate workspace, every one of those connections is revoked.
+
+### Delete the connection in KloudMate
+
+<Steps>
+
+1. Go to **Settings → Connections**.
+
+2. Open the row menu on the Zoom connection and click **Delete**.
+
+3. Confirm the deletion.
+
+</Steps>
+
+Deleting the connection erases the stored Zoom access token and account details. It doesn't remove the app from Zoom, so remove it there as well.
+
+### What changes after you remove the app
+
+- New war rooms open without a **Join Call** button until you select another meeting connection or another **Conference call** option. The rooms still open, and everyone is still invited.
+- Meetings KloudMate already created stay in the host user's Zoom account, and their links keep working. Delete them in Zoom if you don't want them.
+- To use Zoom again after removing the app in Zoom, click **Reconnect** beside the revoked connection and install the app again. Then open **Edit** and turn **Enabled** back on. The connection keeps its ID, so the war room settings still point to it.
+- To use Zoom again after deleting the connection, [add the app](#add-the-app) from the start and select the new connection in the war room settings.
+
+## Related
+
+- [Set up war rooms](/incident-management/war-rooms/setup/)
+- [War room troubleshooting](/incident-management/war-rooms/troubleshooting/)
+- [Manage a connection](../manage-connections/)
