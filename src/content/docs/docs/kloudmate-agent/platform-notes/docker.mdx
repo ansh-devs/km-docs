@@ -61,11 +61,12 @@ The agent leaves a container as it is and shows the reason on its row in these c
 |---|---|
 | Managed by Docker Compose or Docker Swarm | Add the SDK settings to the Compose file or service definition and redeploy. Click **View SDK settings** on the row for the exact settings. |
 | Started with `--rm` or `--volumes-from`, or another container shares its network | Apply the SDK settings at the container's next deploy. |
-| Paused | Unpause the container, then set it to **SDK** again. |
+| Paused | Unpause the container. The agent applies the SDK on its next check-in. |
 | Another APM agent is already loaded, such as dd-trace or a `-javaagent` | Remove the other agent, or keep using it. |
 | Unsupported runtime: Node.js older than 18.19, a Python version the bundle doesn't include, or Python and .NET on Alpine (musl) images | Use eBPF for the container, or a supported image. |
 | `JAVA_TOOL_OPTIONS` would exceed 1024 characters | Shorten the existing options. The JVM ignores longer values. |
 | The agent was installed without the shared folders | Reinstall the agent with the current Docker install command. |
+| The container can't reach the agent, for example on Docker Desktop | Set `KM_CONTAINER_OTLP_URL` on the agent to an address the container can reach, such as `http://host.docker.internal:4318`. |
 
 If the container's entrypoint overwrites `NODE_OPTIONS` or another instrumentation variable, the app runs without the SDK and the row shows the reason. Set the variable in the image instead of in the entrypoint script.
 
