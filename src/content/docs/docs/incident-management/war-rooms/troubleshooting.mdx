@@ -51,7 +51,7 @@ Saving a connection that can't create meetings is refused with `connection '<pro
 
 A call provider that fails doesn't hold up the room. KloudMate opens the channel, invites everyone, and leaves the call off the card.
 
-Open the incident, click the edit icon on **Conference call**, and paste a **Meeting link**. The card and the topic pick it up. Then look at why the provider failed:
+Open the incident, click the edit icon on **Conference call**, and paste a **Meeting link**. The card picks it up, and so does the channel topic in Slack. Then look at why the provider failed:
 
 - The connection selected under **A new meeting per incident** was deleted, switched off, or is **Needs reconnect** or **Revoked**. Removing the KloudMate app at Zoom's end leaves the connection in exactly that state.
 - The connection lost its **Meetings** grant, so the setting no longer points at anything usable.
@@ -83,9 +83,9 @@ You get this on the name field when you've typed a name another channel already 
 
 ## The room was archived while we were still using it
 
-In Slack, an archive scheduled when the incident resolved still runs if you reopen the incident in the meantime. Unarchive the channel in Slack to carry on in it. Starting the war room again returns the same archived room rather than creating a second one.
+A room closes when the delay under **After the incident resolves** runs out and the incident is still resolved. Reopening the incident inside the delay keeps the room open, in Slack and in Teams. If you resolve it again, though, the close scheduled by the first resolve still runs at its original time, so the room can close sooner than the full delay after the second resolve.
 
-In Teams, reopening the incident keeps the room open. A closed Teams room is renamed `closed-<name>` and deleted 7 days later. A team owner can restore a deleted channel in Teams for 30 days.
+In Slack, unarchive the channel to carry on in it. Starting the war room again returns the same archived room rather than creating a second one. A closed Teams room is renamed `closed-<name>` and deleted 7 days later. A team owner can restore a deleted channel in Teams for 30 days.
 
 If this keeps happening, raise the delay under **After the incident resolves**, or set it to **Keep the room open** and archive rooms yourself with **Archive war room** on the incident panel.
 

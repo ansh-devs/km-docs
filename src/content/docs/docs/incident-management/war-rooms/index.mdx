@@ -49,7 +49,7 @@ KloudMate also replies in that thread as the incident moves: acknowledged or una
 
 The room is a new standard channel in the team your war room channel belongs to, so everyone in that team can see it. The first post is the incident card, and KloudMate mentions the responders in the channel so Teams notifies them.
 
-The card shows the severity, status, service, and responders, with links to **View Incident** and, when the incident has a call link, **Join Call**. Its buttons are **Acknowledge** (or **Unack**), **Resolve** (or **Unresolve**), **Add Responders**, and **Note**. A note is posted as a reply under the card and saved on the incident's **Notes** tab. The card is rewritten in place as the incident changes, the same as in Slack.
+The card shows the severity, status, service, and responders, with links to **View Incident** and, when the incident has a call link, **Join Call**. Its buttons are **Acknowledge** (or **Unack**), **Resolve** (or **Unresolve**), **Add Responders**, and **Note**. Only a Developer can use **Add Responders**. A note is posted as a reply under the card and saved on the incident's **Notes** tab. The card is rewritten in place as the incident changes, the same as in Slack.
 
 The card also names responders KloudMate couldn't bring in:
 
@@ -62,13 +62,13 @@ Teams rooms don't have **Run RCA** or the timeline replies. **Private room** has
 
 ## The incident alert turns into a pointer
 
-Once a war room exists, the incident alert in your shared Slack or Teams channel stops carrying its own buttons and becomes a signpost: **Open war room** and **Open in KloudMate**. It isn't rewritten again after that, so read the room's card for the current state. That keeps the conversation in one place instead of splitting it between the alert thread and the room.
+Once a war room exists, the incident alert in the same app stops carrying its own buttons and becomes a signpost: **Open war room** and **Open in KloudMate**. A Slack room does this to the Slack alert, and a Teams room to the Teams alert. An alert in the other app keeps its buttons. The signpost isn't rewritten again after that, so read the room's card for the current state. That keeps the conversation in one place instead of splitting it between the alert thread and the room.
 
 ## Follow the room from the incident page
 
-The **Incident War Room** panel on the incident shows the room as **Active** or **Archived**, links to the channel, and lists the members. A member KloudMate couldn't match to a chat account is tagged **Unmapped**, and hovering it tells you why.
+The **Incident War Room** panel on the incident shows the room as **Active**, or as **Archived** (Slack) or **Closed** (Teams), links to the channel, and lists the members. A member KloudMate couldn't match to a chat account is tagged **Unmapped**, and hovering it tells you why.
 
-**Conference call** sits beside it. Use the edit icon to add or replace the **Meeting link** and the **Dial-in** at any point while the incident is open, and KloudMate updates the card and the topic. A Developer can also end the room early with **Archive war room**, which posts the closing summary and closes the room straight away.
+**Conference call** sits beside it. Use the edit icon to add or replace the **Meeting link** and the **Dial-in** at any point while the incident is open, and KloudMate updates the card, plus the channel topic in Slack. A Developer can also end the room early with **Archive war room** (**Close war room** for Teams), which posts the closing summary and closes the room straight away.
 
 ## When the incident resolves
 
@@ -79,11 +79,7 @@ KloudMate marks the card resolved, then starts the clock on the archive delay, w
 
 Set the delay to **Keep the room open** if you'd rather archive Slack rooms yourself. Teams rooms always need a delay, because every channel counts toward the team's limit of 1,000 channels.
 
-:::caution
-In Slack, reopening an incident doesn't cancel an archive that's already scheduled. If you unresolve an incident inside the delay window, the Slack channel is still archived on time, and starting the war room again returns the archived room. Unarchive the channel in Slack to carry on in it.
-
-In Teams, reopening the incident keeps the room open, and the next resolve starts the delay again.
-:::
+If you unresolve the incident inside the delay window, the room stays open while the incident is open, in Slack and in Teams. Resolving it again schedules another close. A close scheduled by the earlier resolve still runs at its original time, so the room can close sooner than the full delay after the second resolve.
 
 ## Related
 
