@@ -135,7 +135,7 @@ Every number on the tab opens the rows behind it, scoped to that version.
 Releases needs the SDK to send a `version`. Without one there's nothing to compare. Set it in the init call for your platform, in the [Instrumentation Guide](../instrumentation-guide/).
 :::
 
-Release data is counted hourly and kept for 180 days. You can still compare 4.2 against 4.1 weeks later, after the raw sessions behind both have aged out. A release that hasn't collected enough sessions yet isn't compared at all.
+Release data is counted hourly and kept for 400 days. You can still compare 4.2 against 4.1 weeks later, after the raw sessions behind both have aged out. A release that hasn't collected enough sessions yet isn't compared at all.
 
 The older `/rum/deployments` URL redirects here.
 
