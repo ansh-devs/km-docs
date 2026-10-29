@@ -22,7 +22,7 @@ Container monitoring isn't unique to Docker mode. A [Linux agent](../../installa
 For monitoring containers, the two are equivalent. A Linux (systemd) agent on a Docker host and a containerized Docker-mode agent both collect container metrics and logs automatically, and both trace containers per service with eBPF or the OpenTelemetry SDK. Pick between them by how you want to run the agent, not by what they can see:
 
 - **Host processes.** The Linux agent also instruments the host's own non-containerized processes with the OpenTelemetry SDK, through systemd. A Docker-mode agent is itself a container, so it can't do that, and the host's processes are traced with eBPF only.
-- **SDK for containers.** The **SDK** option on containers is on by default in Docker mode. On the Linux agent it's opt-in: set `KM_CONTAINER_INSTRUMENT_ENABLED=true`.
+- **SDK for containers.** The **SDK** option on containers is on by default in Docker mode. On the Linux agent it's opt-in: see [Turn on container SDK for the Linux agent](#turn-on-container-sdk-for-the-linux-agent).
 - **How the agent runs.** Docker mode runs the agent as a container and needs the Docker socket mounted, plus a privileged container with host access for eBPF. The Linux agent runs as a systemd service on the host and already has that access.
 
 ## Application traces
@@ -72,6 +72,31 @@ If the container's entrypoint overwrites `NODE_OPTIONS` or another instrumentati
 
 To keep the agent from recreating containers on a host, set `KM_CONTAINER_SDK_RECREATE=false` in the agent's environment. The **View SDK settings** option still works.
 
+### Turn on container SDK for the Linux agent
+
+A Linux agent on a Docker host adds the SDK to containers the same way a Docker-mode agent does, and it keeps instrumenting the host's own services too. Container SDK is off by default on the Linux agent. Turn it on with a systemd override:
+
+```bash
+sudo systemctl edit kmagent
+```
+
+Add these lines and save:
+
+```ini
+[Service]
+Environment=KM_CONTAINER_INSTRUMENT_ENABLED=true
+```
+
+Then restart the agent:
+
+```bash
+sudo systemctl restart kmagent
+```
+
+Within a minute, the containers on the host offer **SDK** on the agent's **APM** tab.
+
+Don't run a Linux agent and a Docker-mode agent on the same host. Both listen on ports `4317` and `4318`, so the second agent's collector can't start.
+
 ### How containers reach the agent
 
 Node.js containers send traces over the agent's OpenTelemetry socket. The other runtimes send them over OTLP/HTTP, to an address the agent picks for each container:
@@ -82,7 +107,7 @@ Node.js containers send traces over the agent's OpenTelemetry socket. The other 
 On a network with no route to the host, such as macvlan or ipvlan, the agent leaves the container as it is and its row says the container can't reach the agent. Set `KM_CONTAINER_OTLP_URL` to an address your containers can reach, and the agent uses it for every container:
 
 - **Docker-mode agent:** add `-e KM_CONTAINER_OTLP_URL=http://10.0.0.5:4318` to the agent container.
-- **Linux agent:** add `KM_CONTAINER_OTLP_URL=http://10.0.0.5:4318` to `/etc/kmagent/kmagent.env`, then restart the agent with `sudo systemctl restart kmagent`.
+- **Linux agent:** add `Environment=KM_CONTAINER_OTLP_URL=http://10.0.0.5:4318` to the agent's systemd override, the same way as in [Turn on container SDK for the Linux agent](#turn-on-container-sdk-for-the-linux-agent), then restart the agent.
 
 The same address is used for containers that get the SDK through [redeploy-safe SDK](../redeploy-safe-sdk/).
 
@@ -94,7 +119,7 @@ A recreated container loses the SDK when it's redeployed, because the next deplo
 
 A PHP container offers an **SDK** option on the agent's **APM** tab. Turn it on for a container and the agent injects the tracer, matches it to the container's PHP build, and reloads the web server (an Apache graceful reload or a php-fpm reload). Tracing starts with no redeploy and no container restart.
 
-The SDK option appears whenever the PHP-container instrumentation path is enabled. It's on by default in Docker mode. On a [Linux host agent](../../installation/linux-agent/) it's opt-in: set `KM_CONTAINER_INSTRUMENT_ENABLED=true`.
+The SDK option appears whenever the PHP-container instrumentation path is enabled. It's on by default in Docker mode. On a [Linux host agent](../../installation/linux-agent/) it's opt-in: see [Turn on container SDK for the Linux agent](#turn-on-container-sdk-for-the-linux-agent).
 
 For automated or immutable deployments, instrument PHP containers without picking each one:
 
