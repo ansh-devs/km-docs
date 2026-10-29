@@ -17,7 +17,7 @@ Application performance monitoring (APM) is opt-in and per service. For each ser
 
 The flow is the same across every deployment mode:
 
-1. **Discover.** The agent finds your services and lists them in the **Application instrumentation** card on the agent's **APM** tab. To open it, go to **Settings → Agents**, open the agent's actions menu (⋮), and select **Configure**. See [Discovery](../../concepts/discovery/).
+1. **Discover.** The agent finds your services and lists them in the **Application instrumentation** card on the agent's **APM** tab. To open it, go to **Settings → Agents & Pipelines**, open the agent's actions menu (⋮), and select **Configure**. See [Discovery](../../concepts/discovery/).
 2. **Choose a mode.** For each service, pick Off, eBPF, or SDK, then click **Apply**. eBPF takes effect on the next agent check-in with no restart.
 3. **Confirm the restart (SDK only).** SDK instrumentation takes effect when the process restarts, so the agent asks before applying. After you confirm, the service shows **Pending** while the agent applies the change and restarts the app.
 4. **Traces flow.** The service's chip flips to **Instrumented** and it sends application traces to the agent's local collector, correlated with its eBPF spans.

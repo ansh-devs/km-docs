@@ -136,7 +136,7 @@ ebpf:
 
 ## See the agent's own errors
 
-When an agent shows as **Unreachable** or **Degraded** in **Settings → Agents**, you'll usually want its logs. Each agent sends its own **ERROR-level logs** to your workspace, so you can read them in **Log Explorer** without SSHing into the host or running `docker logs` or `kubectl logs`.
+When an agent shows as **Unreachable** or **Degraded** in **Settings → Agents & Pipelines**, you'll usually want its logs. Each agent sends its own **ERROR-level logs** to your workspace, so you can read them in **Log Explorer** without SSHing into the host or running `docker logs` or `kubectl logs`.
 
 These logs are sent independently of the collector, so they still arrive even when the collector fails to start on an invalid config. Both the agent and its collector log this way, so a failure in either one appears in the same place.
 
