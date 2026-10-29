@@ -11,7 +11,7 @@ Redeploy-safe SDK keeps the OpenTelemetry SDK on your containers when they're re
 
 It also covers containers that the agent won't recreate, such as those managed by Docker Compose or Docker Swarm. They get the SDK the next time they're deployed or restarted, with no change to your Compose file.
 
-Redeploy-safe SDK is set per host and is off by default. It works on Docker-mode agents and on Linux agents running on a Docker host with [container SDK turned on](../docker/#turn-on-container-sdk-for-the-linux-agent), for the runtimes that the agent adds the SDK to by recreating: Java, Node.js, Python, and .NET.
+Redeploy-safe SDK is set per host and is off by default. It works on Docker-mode agents and on [Linux agents](../docker/#container-sdk-on-the-linux-agent) running on a Docker host, for the runtimes that the agent adds the SDK to by recreating: Java, Node.js, Python, and .NET.
 
 ## Turn it on
 
