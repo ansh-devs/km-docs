@@ -74,24 +74,18 @@ To keep the agent from recreating containers on a host, set `KM_CONTAINER_SDK_RE
 
 ### Turn on container SDK for the Linux agent
 
-A Linux agent on a Docker host adds the SDK to containers the same way a Docker-mode agent does, and it keeps instrumenting the host's own services too. Container SDK is off by default on the Linux agent. Turn it on with a systemd override:
+A Linux agent on a Docker host adds the SDK to containers the same way a Docker-mode agent does, and it keeps instrumenting the host's own services too. Container SDK is off by default on the Linux agent. Turn it on with a systemd override, then restart the agent:
 
 ```bash
-sudo systemctl edit kmagent
-```
-
-Add these lines and save:
-
-```ini
-[Service]
+sudo mkdir -p /etc/systemd/system/kmagent.service.d
+printf '[Service]
 Environment=KM_CONTAINER_INSTRUMENT_ENABLED=true
-```
-
-Then restart the agent:
-
-```bash
+' | sudo tee /etc/systemd/system/kmagent.service.d/override.conf
+sudo systemctl daemon-reload
 sudo systemctl restart kmagent
 ```
+
+To check that the agent picked it up, run `systemctl show kmagent -p Environment`. It should list `KM_CONTAINER_INSTRUMENT_ENABLED=true`.
 
 Within a minute, the containers on the host offer **SDK** on the agent's **APM** tab.
 
@@ -107,7 +101,7 @@ Node.js containers send traces over the agent's OpenTelemetry socket. The other 
 On a network with no route to the host, such as macvlan or ipvlan, the agent leaves the container as it is and its row says the container can't reach the agent. Set `KM_CONTAINER_OTLP_URL` to an address your containers can reach, and the agent uses it for every container:
 
 - **Docker-mode agent:** add `-e KM_CONTAINER_OTLP_URL=http://10.0.0.5:4318` to the agent container.
-- **Linux agent:** add `Environment=KM_CONTAINER_OTLP_URL=http://10.0.0.5:4318` to the agent's systemd override, the same way as in [Turn on container SDK for the Linux agent](#turn-on-container-sdk-for-the-linux-agent), then restart the agent.
+- **Linux agent:** add `Environment=KM_CONTAINER_OTLP_URL=http://10.0.0.5:4318` as a second line of the agent's `override.conf`, created as in [Turn on container SDK for the Linux agent](#turn-on-container-sdk-for-the-linux-agent), then restart the agent.
 
 The same address is used for containers that get the SDK through [redeploy-safe SDK](../redeploy-safe-sdk/).
 
