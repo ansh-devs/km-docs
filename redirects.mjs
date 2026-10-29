@@ -44,8 +44,18 @@ export const redirects = {
   '/enable-service-principal-azure': '/azure-integration/enable-service-principal-azure/',
   '/get-help': '/getting-started/get-help/',
   '/go-instrumentation-running-on-kubernetes': '/kloudmate-agent/auto-instrumentation/go/',
+  '/guides/llm/anthropic/send-claude-api-traces':
+    '/guides/ai-observability/anthropic/send-claude-api-traces/',
+  '/guides/llm/anthropic/send-claude-code-telemetry':
+    '/guides/ai-observability/anthropic/send-claude-code-telemetry/',
+  '/guides/llm/instrument-python-app-with-openllmetry':
+    '/guides/ai-observability/instrument-python-app-with-openllmetry/',
   '/incidents-overview': '/incident-management/incidents/',
   '/investigations': '/kloudmate-assistant/investigations/',
+  '/llm-observability': '/ai-observability/',
+  '/llm-observability/ai-trace-observability': '/ai-observability/agent-traces/',
+  '/llm-observability/what-is-openllmetry':
+    '/guides/ai-observability/instrument-python-app-with-openllmetry/',
   '/logs-list-panel': '/visualize-data/dashboards/adding-a-panel/logs-list-panel/',
   '/logs-management': '/kloudmate-agent/log-monitoring/',
   '/managing-dashboards': '/visualize-data/dashboards/managing-dashboards/',

@@ -1,0 +1,90 @@
+---
+title: "Send Mastra Traces to KloudMate"
+description: "Export OpenTelemetry traces from Mastra agents and workflows to KloudMate to track model calls, tool calls, tokens, and cost in AI Observability."
+sidebar:
+  label: "Mastra"
+  order: 7
+---
+
+Mastra traces its own agent runs, model calls, tool calls, and workflows. Add its OpenTelemetry exporter and point it at KloudMate to see every run in [AI Observability](/ai-observability/) with its model, tokens, estimated cost, and errors.
+
+## Prerequisites
+
+- A KloudMate API key, from **Settings → Ingest Keys**.
+- Mastra 1.x (`@mastra/core`) on Node.js 22.13 or later.
+
+## Install the packages
+
+```bash
+npm install @mastra/observability @mastra/otel-exporter @opentelemetry/exporter-trace-otlp-proto@^0.218.0
+```
+
+## Add the exporter
+
+Add an `Observability` config with an `OtelExporter` to your `Mastra` instance:
+
+```typescript
+import { Mastra } from '@mastra/core';
+import { Observability } from '@mastra/observability';
+import { OtelExporter } from '@mastra/otel-exporter';
+
+export const mastra = new Mastra({
+  agents: { supportAgent },
+  observability: new Observability({
+    configs: {
+      otel: {
+        serviceName: 'support-agent',
+        exporters: [
+          new OtelExporter({
+            provider: {
+              custom: {
+                endpoint: 'https://otel.kloudmate.com:4318/v1/traces',
+                protocol: 'http/protobuf',
+                headers: { Authorization: process.env.KLOUDMATE_API_KEY! },
+              },
+            },
+          }),
+        ],
+      },
+    },
+  }),
+});
+```
+
+The Mastra exporter doesn't read the `OTEL_EXPORTER_OTLP_*` variables, so the endpoint and header go in the config. Use the full traces URL, ending in `/v1/traces`. KloudMate expects the raw API key in the `Authorization` header, with no `Bearer` prefix.
+
+If the [KloudMate agent](/kloudmate-agent/) runs on the same machine, set the endpoint to `http://localhost:4318/v1/traces` and leave out `headers`.
+
+In a short-lived script or a serverless function, call `await mastra.observability.flush()` before the process exits, so the last spans are sent.
+
+## Group a conversation
+
+Pass a memory thread when you call the agent. KloudMate uses the thread ID as the conversation ID, so the turns of one conversation are grouped together:
+
+```typescript
+const result = await mastra.getAgent('supportAgent').generate(message, {
+  memory: { thread: 'chat-42', resource: 'user-17' },
+});
+```
+
+`stream()` takes the same `memory` option. Configure a `Memory` on the agent if you also want Mastra to keep the conversation history.
+
+## Control what's captured
+
+Mastra records prompts and responses by default, and its sensitive-data filter redacts fields such as passwords, tokens, and API keys before export. To leave the input or output out of a single call, pass `tracingOptions`:
+
+```typescript
+await agent.generate(message, {
+  tracingOptions: { hideInput: true, hideOutput: true },
+});
+```
+
+## Check the data
+
+Run the agent once, then open **AI Observability → Traces**. The run appears as a turn named after the agent, with its model, steps, tokens, and estimated cost.
+
+## Related resources
+
+- [Mastra OpenTelemetry exporter](https://mastra.ai/integrations/observability/opentelemetry)
+- [Use AI Observability](/ai-observability/ai-observability-interface/)
+- [Send GenAI traces](/ai-observability/send-genai-traces/)

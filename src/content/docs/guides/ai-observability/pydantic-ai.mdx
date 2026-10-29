@@ -1,0 +1,87 @@
+---
+title: "Send Pydantic AI Traces to KloudMate"
+description: "Export Pydantic AI's built-in OpenTelemetry traces to KloudMate to track agent runs, model calls, tool calls, tokens, and cost in AI Observability."
+sidebar:
+  label: "Pydantic AI"
+  order: 8
+---
+
+Pydantic AI has OpenTelemetry tracing built in, and its spans already follow the GenAI semantic conventions. Point an OTLP exporter at KloudMate and turn instrumentation on to see every agent run in [AI Observability](/ai-observability/). You don't need a Logfire account.
+
+## Prerequisites
+
+- A KloudMate API key, from **Settings → Ingest Keys**.
+- Pydantic AI 1.89 or later.
+
+## Install the packages
+
+```bash
+pip install pydantic-ai opentelemetry-sdk opentelemetry-exporter-otlp-proto-http
+```
+
+## Turn on instrumentation
+
+Set up a tracer provider with an OTLP exporter, then instrument every agent:
+
+```python
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.trace import set_tracer_provider
+from pydantic_ai import Agent
+
+tracer_provider = TracerProvider()
+tracer_provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
+set_tracer_provider(tracer_provider)
+
+Agent.instrument_all()
+```
+
+Call `tracer_provider.shutdown()` before a script exits, so the last spans are sent.
+
+## Point the exporter at KloudMate
+
+`OTLPSpanExporter()` reads the standard OpenTelemetry variables. Set them in the environment that runs your app:
+
+```bash
+export OTEL_SERVICE_NAME="support-agent"
+export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
+export OTEL_EXPORTER_OTLP_ENDPOINT="https://otel.kloudmate.com:4318"
+export OTEL_EXPORTER_OTLP_HEADERS="Authorization=YOUR_KLOUDMATE_API_KEY"
+```
+
+KloudMate expects the raw API key in the `Authorization` header, with no `Bearer` prefix. If the [KloudMate agent](/kloudmate-agent/) runs on the same machine, set the endpoint to `http://localhost:4318` and leave out the header.
+
+:::tip
+If you already use the Logfire SDK, you can send to KloudMate with `logfire.configure(send_to_logfire=False)` followed by `logfire.instrument_pydantic_ai()`, using the same environment variables.
+:::
+
+## Group a conversation
+
+Pydantic AI sends a conversation ID automatically. A new run starts a new conversation, and a run that passes `message_history` from an earlier run continues it. To use your own chat or thread ID instead, pass `conversation_id`:
+
+```python
+result = await agent.run(question, conversation_id="chat-42")
+```
+
+## Control what's captured
+
+Pydantic AI records prompts, responses, and tool arguments by default. To leave them out, pass `InstrumentationSettings`:
+
+```python
+from pydantic_ai import Agent, InstrumentationSettings
+
+Agent.instrument_all(InstrumentationSettings(include_content=False))
+```
+
+Token counts, models, and latency are still recorded. Pydantic AI also reports its own cost estimate on each call it can price, and KloudMate keeps that value instead of calculating one.
+
+## Check the data
+
+Run the agent once, then open **AI Observability → Traces**. The run appears as a turn named after the agent, with its model, steps, tokens, and estimated cost.
+
+## Related resources
+
+- [Pydantic AI and OpenTelemetry](https://pydantic.dev/docs/ai/integrations/logfire/)
+- [Use AI Observability](/ai-observability/ai-observability-interface/)
+- [Send GenAI traces](/ai-observability/send-genai-traces/)

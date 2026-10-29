@@ -1,0 +1,91 @@
+---
+title: "Send OpenAI Agents SDK Traces to KloudMate"
+description: "Trace OpenAI Agents SDK runs in Python with OpenInference and send agent runs, model calls, tool calls, tokens, and cost to KloudMate AI Observability."
+sidebar:
+  label: "OpenAI Agents SDK"
+  order: 2
+---
+
+The OpenAI Agents SDK traces every run, but by default it sends those traces to the OpenAI dashboard. The OpenInference instrumentation for the Agents SDK turns them into OpenTelemetry spans instead, so you can send them to KloudMate and see each run in [AI Observability](/ai-observability/).
+
+## Prerequisites
+
+- A KloudMate API key, from **Settings → Ingest Keys**.
+- Python 3.10 or later.
+
+## Install the packages
+
+```bash
+pip install openai-agents openinference-instrumentation-openai-agents opentelemetry-sdk opentelemetry-exporter-otlp-proto-http
+```
+
+## Instrument the SDK
+
+Set up a tracer provider and instrument the Agents SDK before you run an agent:
+
+```python
+from openinference.instrumentation.openai_agents import OpenAIAgentsInstrumentor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.trace import set_tracer_provider
+
+tracer_provider = TracerProvider()
+tracer_provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
+set_tracer_provider(tracer_provider)
+
+OpenAIAgentsInstrumentor().instrument(tracer_provider=tracer_provider)
+```
+
+Call `tracer_provider.shutdown()` before a script exits, so the last spans are sent.
+
+By default, the instrumentation replaces the SDK's own trace export, so traces stop going to the OpenAI dashboard. To keep sending to both, pass `exclusive_processor=False` to `instrument()`.
+
+:::caution
+Don't turn tracing off with `set_tracing_disabled(True)`, `OPENAI_AGENTS_DISABLE_TRACING`, or `RunConfig(tracing_disabled=True)`. Those stop the SDK from producing traces at all, so nothing reaches KloudMate either.
+:::
+
+## Point the exporter at KloudMate
+
+`OTLPSpanExporter()` reads the standard OpenTelemetry variables. Set them in the environment that runs your app:
+
+```bash
+export OTEL_SERVICE_NAME="support-agent"
+export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
+export OTEL_EXPORTER_OTLP_ENDPOINT="https://otel.kloudmate.com:4318"
+export OTEL_EXPORTER_OTLP_HEADERS="Authorization=YOUR_KLOUDMATE_API_KEY"
+```
+
+KloudMate expects the raw API key in the `Authorization` header, with no `Bearer` prefix. If the [KloudMate agent](/kloudmate-agent/) runs on the same machine, set the endpoint to `http://localhost:4318` and leave out the header.
+
+## Group a conversation
+
+The Agents SDK's `group_id` isn't exported to OpenTelemetry. Wrap each run in `using_session()` instead:
+
+```python
+from openinference.instrumentation import using_session
+
+with using_session("chat-42"):
+    result = await Runner.run(agent, question)
+```
+
+## Control what's captured
+
+Prompts, responses, and tool arguments are recorded by default. To leave them out, set these variables before your app starts:
+
+```bash
+export OPENINFERENCE_HIDE_INPUTS="true"
+export OPENINFERENCE_HIDE_OUTPUTS="true"
+```
+
+Token counts, models, and latency are still recorded.
+
+## Check the data
+
+Run the agent once, then open **AI Observability → Traces**. The run appears as **Agent workflow Turn**, or under the name you set with `RunConfig(workflow_name=...)`, with its model, steps, tokens, and estimated cost.
+
+## Related resources
+
+- [OpenInference Agents SDK instrumentation](https://pypi.org/project/openinference-instrumentation-openai-agents/)
+- [Agents SDK tracing](https://openai.github.io/openai-agents-python/tracing/)
+- [Use AI Observability](/ai-observability/ai-observability-interface/)

@@ -1,0 +1,111 @@
+---
+title: "Send OpenAI SDK Traces to KloudMate"
+description: "Trace OpenAI SDK calls in Python and Node.js with the OpenTelemetry instrumentation and send model calls, tokens, and cost to KloudMate AI Observability."
+sidebar:
+  label: "OpenAI SDK"
+  order: 1
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+The OpenTelemetry project maintains an instrumentation for the OpenAI SDK that creates a span for each chat completion and embedding request, with the model, token counts, and, if you turn it on, the messages. Send those spans to KloudMate to see each call in [AI Observability](/ai-observability/) with its estimated cost.
+
+Use this guide when your app calls the OpenAI SDK directly. If you build on an agent framework, follow the guide for that framework instead, so each model call is recorded once.
+
+## Prerequisites
+
+- A KloudMate API key, from **Settings → Ingest Keys**.
+- Python 3.10 or later, or Node.js 22.15 or later.
+
+## Instrument your app
+
+<Tabs syncKey="lang">
+<TabItem label="Python">
+
+Install the instrumentation and the OpenTelemetry launcher:
+
+```bash
+pip install opentelemetry-distro opentelemetry-exporter-otlp-proto-http opentelemetry-instrumentation-openai-v2
+```
+
+Set the exporter and content variables, then start your app with `opentelemetry-instrument`:
+
+```bash
+export OTEL_SERVICE_NAME="support-agent"
+export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
+export OTEL_EXPORTER_OTLP_ENDPOINT="https://otel.kloudmate.com:4318"
+export OTEL_EXPORTER_OTLP_HEADERS="Authorization=YOUR_KLOUDMATE_API_KEY"
+export OTEL_SEMCONV_STABILITY_OPT_IN="gen_ai_latest_experimental"
+export OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT="span_only"
+
+opentelemetry-instrument python app.py
+```
+
+Set `OTEL_EXPORTER_OTLP_PROTOCOL` explicitly. The launcher defaults to gRPC, which doesn't work with the HTTP endpoint on port 4318.
+
+`span_only` puts prompts and responses on the spans, where AI Observability reads them. Without `OTEL_SEMCONV_STABILITY_OPT_IN`, the instrumentation follows an older version of the conventions and writes content to log events instead. To leave content out, omit `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT`.
+
+:::caution
+If the app fails to start with an `ImportError` for `opentelemetry.util.genai.instruments`, the installed `opentelemetry-util-genai` is newer than the instrumentation supports. Install `"opentelemetry-util-genai<1.2"` until a compatible instrumentation release is out.
+:::
+
+</TabItem>
+<TabItem label="Node.js">
+
+Install the OpenTelemetry SDK and the OpenAI instrumentation:
+
+```bash
+npm install @opentelemetry/sdk-node @opentelemetry/exporter-trace-otlp-proto @opentelemetry/instrumentation-openai
+```
+
+Create `telemetry.ts`, which starts the SDK before your app imports `openai`:
+
+```typescript
+import { OpenAIInstrumentation } from '@opentelemetry/instrumentation-openai';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
+import { NodeSDK } from '@opentelemetry/sdk-node';
+
+const sdk = new NodeSDK({
+  traceExporter: new OTLPTraceExporter(),
+  instrumentations: [new OpenAIInstrumentation()],
+});
+sdk.start();
+```
+
+Load it ahead of your app, for example `node --import ./telemetry.js app.js`, and set the same `OTEL_SERVICE_NAME` and `OTEL_EXPORTER_OTLP_*` variables shown in the Python tab. The Node.js instrumentation also covers the Responses API. It writes message content to log events rather than spans, so the conversation view stays empty for these calls.
+
+</TabItem>
+</Tabs>
+
+KloudMate expects the raw API key in the `Authorization` header, with no `Bearer` prefix. If the [KloudMate agent](/kloudmate-agent/) runs on the same machine, set the endpoint to `http://localhost:4318` and leave out the header.
+
+## Group a conversation
+
+The instrumentation doesn't know which conversation a call belongs to, so each call shows as its own run. To group the calls of one conversation, wrap them in a span that sets `gen_ai.conversation.id`:
+
+```python
+from opentelemetry import trace
+
+tracer = trace.get_tracer("support-agent")
+
+with tracer.start_as_current_span("handle_message") as span:
+    span.set_attribute("gen_ai.conversation.id", chat_id)
+    reply = client.chat.completions.create(model="gpt-4o-mini", messages=messages)
+```
+
+KloudMate copies the ID only to spans that arrive in the same export as the wrapping span. If a request runs longer than the exporter's batch delay, 5 seconds by default, set `OTEL_BSP_SCHEDULE_DELAY` (in milliseconds) above the request's duration.
+
+## Known limitations
+
+- The Python instrumentation covers Chat Completions and Embeddings. Calls to the Responses API aren't traced.
+- The Python instrumentation doesn't report cached input tokens, so the cache hit rate reads zero and the estimated cost doesn't include the cache discount.
+
+## Check the data
+
+Make one request, then open **AI Observability → Traces**. The call appears as **Chat · gpt-4o-mini**, or under your wrapping span's name, with its tokens and estimated cost.
+
+## Related resources
+
+- [OpenAI instrumentation for Python](https://pypi.org/project/opentelemetry-instrumentation-openai-v2/)
+- [OpenAI instrumentation for Node.js](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/instrumentation-openai)
+- [OpenAI Agents SDK](../agents-sdk/)
