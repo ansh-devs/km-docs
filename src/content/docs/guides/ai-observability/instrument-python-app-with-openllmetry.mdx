@@ -2,18 +2,19 @@
 title: "Instrument a Python LLM App with OpenLLMetry"
 description: "Trace a LangChain agent end to end with OpenLLMetry and send prompts, tool calls, token usage, and latency to KloudMate."
 sidebar:
-  order: 1
+  label: "OpenLLMetry tutorial (Python)"
+  order: 20
 ---
 
 This guide walks you through instrumenting a real LLM application (a small LangChain agent that calls tools) and viewing its traces in KloudMate. By the end you'll see each agent run as a single trace: the model's reasoning, every tool call, token usage per call, and where the time went.
 
-You'll build a customer-support agent for an online store. The agent answers a question by deciding which tools to call (look up an order, check a return policy), then writing a reply. That back-and-forth is exactly the kind of multi-step flow that's hard to debug from logs alone, and easy to read as a trace.
+You'll build a customer-support agent for an online store. The agent answers a question by deciding which tools to call (look up an order, check a return policy), then writing a reply.
 
-OpenLLMetry does the instrumentation. It's an OpenTelemetry-native SDK from Traceloop that auto-instruments LangChain and the underlying model calls, so you add a few lines of setup and change nothing in the agent itself. For the concepts behind it, see [Introduction to OpenLLMetry](/llm-observability/what-is-openllmetry/).
+OpenLLMetry does the instrumentation. It's an OpenTelemetry-native SDK from Traceloop that auto-instruments LangChain and the underlying model calls, so you add a few lines of setup and change nothing in the agent itself.
 
 ## Prerequisites
 
-- Python 3.9 or later.
+- Python 3.10 or later.
 - An OpenAI API key ([where to find it](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key)).
 - A KloudMate workspace API key, from **Settings → Ingest Keys**.
 
@@ -59,7 +60,7 @@ KloudMate authenticates with your API key in the `Authorization` header: the raw
 
 ## Step 3: Build the agent
 
-Create `app.py`. The agent has two tools backed by in-memory data so the example runs without a database. In a real app these would be API or database calls, but the tool *shape* is what matters, because that's what shows up in the trace.
+Create `app.py`. The agent has two tools backed by in-memory data so the example runs without a database. In a real app these would be API or database calls.
 
 ```python
 import os
@@ -73,8 +74,7 @@ Traceloop.init(
     disable_batch=True,
 )
 
-from langchain.agents import AgentExecutor, create_tool_calling_agent
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain.agents import create_agent
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 
@@ -108,24 +108,15 @@ SYSTEM_PROMPT = (
     "details or refund amounts. Give the customer a short, helpful answer."
 )
 
-def build_agent() -> AgentExecutor:
+def build_agent():
     llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            ("system", SYSTEM_PROMPT),
-            ("human", "{input}"),
-            MessagesPlaceholder("agent_scratchpad"),
-        ]
-    )
-    agent = create_tool_calling_agent(llm, TOOLS, prompt)
-    return AgentExecutor(agent=agent, tools=TOOLS, verbose=False)
+    return create_agent(llm, tools=TOOLS, system_prompt=SYSTEM_PROMPT, name="support_agent")
 
 if __name__ == "__main__":
     agent = build_agent()
-    result = agent.invoke(
-        {"input": "I'd like to return order #4412. What's the policy and how much would I get back?"}
-    )
-    print(result["output"])
+    question = "I'd like to return order #4412. What's the policy and how much would I get back?"
+    result = agent.invoke({"messages": [{"role": "user", "content": question}]})
+    print(result["messages"][-1].content)
 ```
 
 ## Step 4: Run it
@@ -134,15 +125,15 @@ if __name__ == "__main__":
 python3 app.py
 ```
 
-The agent answers the question, and OpenLLMetry exports the trace to KloudMate. Behind that one answer, the agent made two model calls and two tool calls, all captured as a single trace.
+The agent answers the question, and OpenLLMetry exports the trace to KloudMate. Behind that one answer, the agent made several model calls and two tool calls, all captured as a single trace.
 
 ## Step 5: View the trace in KloudMate
 
 Open [KloudMate](https://app.kloudmate.com), go to **Traces**, and filter by the service `support-agent`. Open the most recent trace.
 
-You'll see the full agent run as a waterfall: the `AgentExecutor` at the top, the model calls (`ChatOpenAI.chat`), and the tool calls (`get_order_status`, `get_return_policy`) nested underneath with their durations. Select any model span to read the exact prompt and response, the token usage, and the finish reason.
+You'll see the full agent run as a waterfall: the agent run at the top, with the model calls and the `get_order_status` and `get_return_policy` tool calls nested underneath. Select any model span to read the exact prompt and response, the token usage, and the finish reason.
 
-For a tour of everything KloudMate surfaces on an agent trace (the conversation transcript, token and cache breakdown, tool calls, and the AI Flow graph), see [Agentic Workflow Observability](/llm-observability/ai-trace-observability/).
+For a tour of everything KloudMate surfaces on an agent trace (the conversation transcript, token and cache breakdown, tool calls, and the AI Flow graph), see [Agent Traces](/ai-observability/agent-traces/). The run also appears in **AI Observability → Traces** as **support_agent Turn**, with its token usage and estimated cost.
 
 ## Step 6: Tag traces with a user and session
 
@@ -152,21 +143,19 @@ Production agents serve many customers across many conversations. Attach a user 
 Traceloop.set_association_properties(
     {"user_id": "cust_1042", "session_id": "sess_8f21"}
 )
-result = agent.invoke({"input": "..."})
+result = agent.invoke({"messages": [{"role": "user", "content": question}]})
 ```
 
-KloudMate stores these on every span in the run, so you can filter and group traces by `user_id` or `session_id` when you investigate an issue.
+KloudMate stores these on every span in the run, so you can filter and group traces by `user_id` or `session_id` when you investigate an issue. The `session_id` also becomes the conversation ID (`gen_ai.conversation.id`) in AI Observability.
 
 ## Step 7: Prepare for production
 
-A few changes once you move past local testing:
-
 - **Batch exports.** Drop `disable_batch=True` so spans export in the background instead of one HTTP request per span.
-- **Decide what to capture.** OpenLLMetry records prompt and completion content by default, which is what makes the conversation view useful. If your prompts carry sensitive data, set `TRACELOOP_TRACE_CONTENT=false` to record metadata (tokens, model, latency) without the message bodies.
+- **Decide what to capture.** OpenLLMetry records prompt and completion content by default. If your prompts carry sensitive data, set `TRACELOOP_TRACE_CONTENT=false` to record metadata (tokens, model, latency) without the message bodies.
 - **Keep init first.** Call `Traceloop.init()` before the rest of your app imports run, so every model and tool call is instrumented.
 
 ## Related resources
 
-- [Agentic Workflow Observability](/llm-observability/ai-trace-observability/), what to look for once your traces land in KloudMate
-- [Introduction to OpenLLMetry](/llm-observability/what-is-openllmetry/)
-- [Instrument a Python App](/guides/opentelemetry/python/), general OpenTelemetry instrumentation
+- [Agent Traces](/ai-observability/agent-traces/)
+- [AI Observability](/ai-observability/)
+- [Instrument a Python App](/guides/opentelemetry/python/)

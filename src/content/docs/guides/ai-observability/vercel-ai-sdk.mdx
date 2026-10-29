@@ -1,0 +1,141 @@
+---
+title: "Send Vercel AI SDK Traces to KloudMate"
+description: "Export OpenTelemetry traces from the Vercel AI SDK to KloudMate to track model calls, tool calls, tokens, and cost in AI Observability."
+sidebar:
+  label: "Vercel AI SDK"
+  order: 9
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+The Vercel AI SDK emits an OpenTelemetry span for each `generateText` or `streamText` call, each model request, and each tool call. Send those spans to KloudMate to see every call in [AI Observability](/ai-observability/) with its model, tokens, estimated cost, and errors.
+
+This guide covers AI SDK 7. Earlier versions are covered in [AI SDK 5 and 6](#ai-sdk-5-and-6).
+
+## Prerequisites
+
+- A KloudMate API key, from **Settings → Ingest Keys**.
+- Node.js 22 or later.
+
+## Install the packages
+
+```bash
+npm install ai @ai-sdk/otel @opentelemetry/api @opentelemetry/sdk-node @opentelemetry/exporter-trace-otlp-proto
+```
+
+## Register the telemetry integration
+
+The AI SDK creates spans through an OpenTelemetry tracer, so start the OpenTelemetry SDK first and then register the AI SDK integration. Both run once, before your first AI call.
+
+<Tabs syncKey="vercel-runtime">
+<TabItem label="Node.js">
+
+Create `telemetry.ts` and import it first in your entry file:
+
+```typescript
+import { OpenTelemetry } from '@ai-sdk/otel';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { registerTelemetry } from 'ai';
+
+const sdk = new NodeSDK({ traceExporter: new OTLPTraceExporter() });
+sdk.start();
+
+registerTelemetry(new OpenTelemetry());
+
+export const shutdownTelemetry = () => sdk.shutdown();
+```
+
+Call `await shutdownTelemetry()` before a script exits, so the last spans are sent.
+
+</TabItem>
+<TabItem label="Next.js">
+
+Install `@vercel/otel` and register both in `instrumentation.ts`:
+
+```typescript
+import { OpenTelemetry } from '@ai-sdk/otel';
+import { registerOTel } from '@vercel/otel';
+import { registerTelemetry } from 'ai';
+
+export function register() {
+  registerOTel({ serviceName: 'support-agent' });
+  registerTelemetry(new OpenTelemetry());
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Point the exporter at KloudMate
+
+Set the standard OpenTelemetry variables in the environment that runs your app:
+
+```bash
+export OTEL_SERVICE_NAME="support-agent"
+export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
+export OTEL_EXPORTER_OTLP_ENDPOINT="https://otel.kloudmate.com:4318"
+export OTEL_EXPORTER_OTLP_HEADERS="Authorization=YOUR_KLOUDMATE_API_KEY"
+```
+
+KloudMate expects the raw API key in the `Authorization` header, with no `Bearer` prefix. If the [KloudMate agent](/kloudmate-agent/) runs on the same machine, set the endpoint to `http://localhost:4318` and leave out the header.
+
+## Name your calls
+
+Once the integration is registered, every AI SDK call is traced. Give each call a `functionId`, which becomes the agent name in KloudMate:
+
+```typescript
+const result = await generateText({
+  model,
+  prompt,
+  tools,
+  telemetry: { functionId: 'support-agent' },
+});
+```
+
+Prompts and responses are recorded by default. To leave them out, set `recordInputs: false` or `recordOutputs: false` in the same `telemetry` object. To skip tracing for one call, set `isEnabled: false`.
+
+## Group a conversation
+
+The AI SDK doesn't send a conversation ID, so each call shows as a separate run. To group the calls of one conversation, wrap them in a span that sets `gen_ai.conversation.id`:
+
+```typescript
+import { trace } from '@opentelemetry/api';
+
+const tracer = trace.getTracer('support-agent');
+
+await tracer.startActiveSpan('handle_message', async (span) => {
+  span.setAttribute('gen_ai.conversation.id', chatId);
+  try {
+    await generateText({ model, prompt, telemetry: { functionId: 'support-agent' } });
+  } finally {
+    span.end();
+  }
+});
+```
+
+KloudMate copies the ID only to spans that arrive in the same export as the wrapping span. If a request runs longer than the exporter's batch delay, 5 seconds by default, set `OTEL_BSP_SCHEDULE_DELAY` (in milliseconds) above the request's duration.
+
+## AI SDK 5 and 6
+
+Earlier versions don't use `@ai-sdk/otel` or `registerTelemetry`. Start the OpenTelemetry `NodeSDK` as above, then turn on telemetry for each call:
+
+```typescript
+const result = await generateText({
+  model,
+  prompt,
+  experimental_telemetry: { isEnabled: true, functionId: 'support-agent' },
+});
+```
+
+These versions emit spans with `ai.*` attributes, which KloudMate maps to the GenAI conventions when they arrive. With caching turned on, the Anthropic and Amazon Bedrock providers in AI SDK 5 report input tokens without the cached part, so those calls can show a lower cost than you were billed.
+
+## Check the data
+
+Run one call, then open **AI Observability → Traces**. The run appears as **support-agent Turn** with its model, steps, tokens, and estimated cost.
+
+## Related resources
+
+- [AI SDK telemetry](https://ai-sdk.dev/docs/ai-sdk-core/telemetry)
+- [Use AI Observability](/ai-observability/ai-observability-interface/)
+- [Send GenAI traces](/ai-observability/send-genai-traces/)

@@ -1,0 +1,50 @@
+---
+title: "Send OpenAI Codex Telemetry to KloudMate"
+description: "Export traces and events from the OpenAI Codex CLI and IDE extension to KloudMate to track turns, model calls, tool calls, tokens, and cost in AI Observability."
+sidebar:
+  label: "OpenAI Codex"
+  order: 3
+---
+
+Codex can export OpenTelemetry traces and log events for every session. Add exporters to your Codex config and point them at KloudMate to see each Codex turn in [AI Observability](/ai-observability/) with its model calls, tool calls, tokens, and estimated cost.
+
+## Prerequisites
+
+- A KloudMate API key, from **Settings → Ingest Keys**.
+- The Codex CLI or IDE extension, configured through `~/.codex/config.toml`.
+
+## Add the exporters
+
+Add an `[otel]` section to `~/.codex/config.toml`. Codex ignores `[otel]` in a project's `.codex/config.toml`, so it must go in the file in your home directory.
+
+```toml
+[otel]
+environment = "prod"
+trace_exporter = { otlp-http = { endpoint = "https://otel.kloudmate.com:4318/v1/traces", protocol = "binary", headers = { "Authorization" = "YOUR_KLOUDMATE_API_KEY" } } }
+exporter = { otlp-http = { endpoint = "https://otel.kloudmate.com:4318/v1/logs", protocol = "binary", headers = { "Authorization" = "YOUR_KLOUDMATE_API_KEY" } } }
+```
+
+- `trace_exporter` sends the traces that AI Observability reads. It's off unless you set it.
+- `exporter` sends Codex's log events, such as API requests and tool decisions, to KloudMate **Logs**. It's optional.
+- Each endpoint takes the full path for its signal (`/v1/traces` or `/v1/logs`), and `protocol` is required.
+
+KloudMate expects the raw API key in the `Authorization` header, with no `Bearer` prefix. Restart Codex after you edit the file.
+
+## Prompts and responses
+
+Codex writes prompts and responses to log events only, not to spans, so the conversation view in AI Observability stays empty for Codex runs. User prompts are redacted even in the log events unless you add `log_user_prompt = true` to the `[otel]` section.
+
+## Known limitations
+
+- Codex doesn't set a status on its spans, so a request that fails without a response isn't counted as an error, and its turn shows as completed.
+- Codex sends its spans in several batches. Latency for the last model call in a turn can read low, and that call can be missing its provider.
+
+## Check the data
+
+Run one prompt in Codex, then open **AI Observability → Traces**. The turn appears as **Codex Turn**, grouped with the rest of its session, with its model, steps, tokens, and estimated cost.
+
+## Related resources
+
+- [Codex advanced configuration](https://learn.chatgpt.com/docs/config-file/config-advanced)
+- [Send Claude Code telemetry](../../anthropic/send-claude-code-telemetry/)
+- [Use AI Observability](/ai-observability/ai-observability-interface/)

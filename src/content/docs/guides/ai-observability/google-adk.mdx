@@ -1,0 +1,76 @@
+---
+title: "Send Google ADK Traces to KloudMate"
+description: "Export Google Agent Development Kit (ADK) traces to KloudMate to track agent runs, model calls, tool calls, tokens, and cost in AI Observability."
+sidebar:
+  label: "Google ADK"
+  order: 4
+---
+
+The Agent Development Kit (ADK) has OpenTelemetry tracing built in. It creates a span for each agent run, model call, and tool call, following the GenAI semantic conventions. Set the standard exporter variables and ADK sends them to KloudMate, where every run appears in [AI Observability](/ai-observability/).
+
+## Prerequisites
+
+- A KloudMate API key, from **Settings → Ingest Keys**.
+- ADK for Python 2.13 or later.
+
+## Install the packages
+
+Install ADK with the `otel` extra, which adds the OTLP exporter:
+
+```bash
+pip install "google-adk[otel]"
+```
+
+Without the extra, ADK logs a warning and doesn't export anything.
+
+## Point ADK at KloudMate
+
+Set these variables in the environment that runs your agent:
+
+```bash
+export OTEL_SERVICE_NAME="support-agent"
+export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
+export OTEL_EXPORTER_OTLP_ENDPOINT="https://otel.kloudmate.com:4318"
+export OTEL_EXPORTER_OTLP_HEADERS="Authorization=YOUR_KLOUDMATE_API_KEY"
+```
+
+KloudMate expects the raw API key in the `Authorization` header, with no `Bearer` prefix. If the [KloudMate agent](/kloudmate-agent/) runs on the same machine, set the endpoint to `http://localhost:4318` and leave out the header. With `OTEL_EXPORTER_OTLP_ENDPOINT` set, ADK also exports its metrics and logs to the same place.
+
+## Start exporting
+
+For `adk web` and `adk api_server`, set the variables and start the server as usual. In your own code, call `maybe_set_otel_providers()` once, before you create a runner:
+
+```python
+from google.adk.telemetry.setup import maybe_set_otel_providers
+
+maybe_set_otel_providers()
+```
+
+## Capture prompts and responses
+
+By default, ADK doesn't put prompts and responses in the GenAI attributes that AI Observability reads. To add them, set:
+
+```bash
+export OTEL_SEMCONV_STABILITY_OPT_IN="gen_ai_latest_experimental"
+export OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT="SPAN_ONLY"
+```
+
+Use `SPAN_ONLY`, not `true`. In ADK, `true` writes content to log events only, which AI Observability doesn't read.
+
+## Group a conversation
+
+ADK uses the session ID as the conversation ID, so every turn in one ADK session is grouped into the same conversation. You don't need to set anything.
+
+## Known limitations
+
+- When you use a non-Gemini model through LiteLLM, the provider comes from the model name prefix, such as `openrouter/` or `anthropic/`. Some LiteLLM providers report reasoning tokens twice, which inflates output tokens and cost.
+
+## Check the data
+
+Run the agent once, then open **AI Observability → Traces**. The run appears as a turn named after the root agent, with its model, steps, tokens, and estimated cost.
+
+## Related resources
+
+- [ADK traces](https://adk.dev/observability/traces/)
+- [ADK logging](https://adk.dev/observability/logging/)
+- [Use AI Observability](/ai-observability/ai-observability-interface/)
