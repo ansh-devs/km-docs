@@ -174,6 +174,8 @@ Container SDK instrumentation reaches the containers through the Docker socket, 
 
 eBPF monitoring is different: it needs host kernel access, so a plain, non-privileged agent container cannot produce the eBPF signals. Run the agent on the host, or as a privileged container with host mounts.
 
+With eBPF on, the agent uses about 300 MiB of memory, and briefly more while it applies a tracing change. Run it on hosts with at least 2 GB of RAM. On a 1 GB host, such as an AWS t3.micro, the agent and your apps can run short of memory while a change is applied.
+
 ## PHP 7 in containers
 
 A tracer built on the host must match the container's exact PHP build, so PHP 7 in a container is the hardest case. The reliable path is to add the tracer at image build time. See [PHP instrumentation](../../auto-instrumentation/php/).
