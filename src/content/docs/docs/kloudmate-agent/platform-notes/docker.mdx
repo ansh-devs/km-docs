@@ -125,7 +125,7 @@ KM_CONTAINER_INSTRUMENT_ALL=true
 KM_CONTAINER_INSTRUMENT_NAMES=app1,app2
 KM_CONTAINER_INSTRUMENT_IMAGES=wordpress,my-php-app
 
-# Turn the PHP-container SDK path off entirely
+# Turn container SDK off entirely, PHP included
 KM_CONTAINER_INSTRUMENT_ENABLED=false
 ```
 
@@ -138,7 +138,7 @@ The agent cannot instrument a container that serves requests from the **PHP buil
 
 ### How PHP-container tracing is selected
 
-By default, a PHP container is traced when you set it to **SDK** on the **APM** tab, the same per-service choice as any other service. The environment variables above override that for automated rollouts: `KM_CONTAINER_INSTRUMENT_ALL`, `KM_CONTAINER_INSTRUMENT_NAMES`, or `KM_CONTAINER_INSTRUMENT_IMAGES` instrument a fixed set with no UI step, and [autonomous mode](../../advanced-configuration/) instruments every PHP container. Setting `KM_CONTAINER_INSTRUMENT_ENABLED=false` turns the SDK path off, so PHP containers fall back to **Off** or **eBPF**.
+By default, a PHP container is traced when you set it to **SDK** on the **APM** tab, the same per-service choice as any other service. The environment variables above override that for automated rollouts: `KM_CONTAINER_INSTRUMENT_ALL`, `KM_CONTAINER_INSTRUMENT_NAMES`, or `KM_CONTAINER_INSTRUMENT_IMAGES` instrument a fixed set with no UI step, and [autonomous mode](../../advanced-configuration/) instruments every PHP container. Setting `KM_CONTAINER_INSTRUMENT_ENABLED=false` turns container SDK off, so containers fall back to **Off** or **eBPF**.
 
 ## Send full OpenTelemetry traces from your containers
 
@@ -174,7 +174,7 @@ Container SDK instrumentation reaches the containers through the Docker socket, 
 
 eBPF monitoring is different: it needs host kernel access, so a plain, non-privileged agent container cannot produce the eBPF signals. Run the agent on the host, or as a privileged container with host mounts.
 
-With eBPF on, the agent uses about 300 MiB of memory, and briefly more while it applies a tracing change. Run it on hosts with at least 2 GB of RAM. On a 1 GB host, such as an AWS t3.micro, the agent and your apps can run short of memory while a change is applied.
+With eBPF on, the agent uses about 300 MiB of memory, and briefly more while it applies a tracing change. Hosts with at least 2 GB of RAM are recommended. On a smaller host, such as a 1 GB AWS t3.micro, the agent holds itself to about a third of the host's memory, so your apps keep the rest.
 
 ## PHP 7 in containers
 
