@@ -10,7 +10,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 The Claude API and the Claude SDK can emit an OpenTelemetry span for each Messages API request, model run, tool use, and Managed Agents turn. Send these spans to KloudMate to debug failed or slow requests, track token usage and latency, and see each Claude call inside your application's own traces.
 
-You can send traces from two places, and you can use both at once:
+Use API tracing, SDK tracing, or both:
 
 - **API tracing** sends spans from the Claude API itself. You add a destination in the Claude Console, and every request in the workspaces it covers is traced, from any client, with no code change. It's the only way to see each model run inside a request, server tools such as web search, and Managed Agents turns.
 - **SDK tracing** sends spans from the Claude SDK in your application, through your own OpenTelemetry exporter. It also traces the client tools that the SDK's tool runner runs, and it nests each Claude call under your application's spans.
@@ -194,19 +194,9 @@ For API tracing, set it on the destination. For SDK tracing, set `ANTHROPIC_OPEN
 
 With **Full content**, prompts and responses are stored in KloudMate under your workspace's retention settings, so check that this meets your organization's requirements before you turn it on. Each span holds up to 0.75 MB of content by default, and longer content is shortened and marked with `anthropic.content.truncated`.
 
-## Read the spans
+## Read the traces
 
-| Span | Emitted by | What it covers |
-| --- | --- | --- |
-| `anthropic.messages.create` | SDK (`CLIENT`) and API (`SERVER`) | One Messages API request |
-| `anthropic.model_request` | API | One model run inside a request |
-| `anthropic.tool_use`, `anthropic.mcp_tool_use` | API | A server tool or an MCP connector tool that the API runs |
-| `anthropic.custom_tool_use` | SDK | A client tool that the SDK's tool runner runs |
-| `anthropic.session.turn` | API | One Managed Agents turn |
-
-Token usage is in `gen_ai.usage.input_tokens` and `gen_ai.usage.output_tokens`, and `gen_ai.usage.input_tokens` already includes prompt cache reads and writes. A request's usage appears on more than one span, so when you chart tokens, sum only the `anthropic.messages.create` spans from one source. If you use both API and SDK tracing, sum the `SERVER` spans.
-
-For every span and attribute, see the [Claude OpenTelemetry span reference](https://platform.claude.com/docs/en/api/opentelemetry/spans). For what KloudMate shows on an LLM trace, see [Agentic Workflow Observability](/llm-observability/ai-trace-observability/).
+Each Claude call appears in [AI Observability](/ai-observability/) with its model, tokens, and estimated cost. If you use both API and SDK tracing, each request is recorded once by each, so AI Observability counts its tokens and cost twice. Send only one source to KloudMate, or filter by service. For every span and attribute, see the [Claude OpenTelemetry span reference](https://platform.claude.com/docs/en/api/opentelemetry/spans).
 
 ## Troubleshooting
 

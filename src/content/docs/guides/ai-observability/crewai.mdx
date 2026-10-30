@@ -1,0 +1,84 @@
+---
+title: "Send CrewAI Traces to KloudMate"
+description: "Trace CrewAI crews and agents with OpenLLMetry and send model calls, tokens, and cost to KloudMate AI Observability."
+sidebar:
+  label: "CrewAI"
+  order: 3
+---
+
+CrewAI doesn't export OpenTelemetry traces to your own backend. OpenLLMetry, from Traceloop, adds them: one `Traceloop.init()` call instruments CrewAI and the model SDKs it uses. Send those spans to KloudMate to see each crew run in [AI Observability](/ai-observability/).
+
+## Prerequisites
+
+- A KloudMate API key, from **Settings → Ingest Keys**.
+- Python 3.11 or later.
+
+## Install the packages
+
+```bash
+pip install crewai traceloop-sdk
+```
+
+## Initialize OpenLLMetry
+
+Call `Traceloop.init()` at startup, before you import CrewAI:
+
+```python
+import os
+
+from traceloop.sdk import Traceloop
+
+Traceloop.init(
+    app_name="research-crew",
+    api_endpoint="https://otel.kloudmate.com:4318",
+    headers={"Authorization": os.environ["KLOUDMATE_API_KEY"]},
+)
+
+from crewai import Agent, Crew, Task  # noqa: E402
+```
+
+Use the base URL without `/v1/traces`, because the SDK appends it. KloudMate expects the raw API key in the `Authorization` header, with no `Bearer` prefix. If the [KloudMate agent](/kloudmate-agent/) runs on the same machine, set `api_endpoint` to `http://localhost:4318` and leave out `headers`.
+
+You can set the endpoint and header with environment variables instead. These take priority over the values passed to `init()`:
+
+```bash
+export TRACELOOP_BASE_URL="https://otel.kloudmate.com:4318"
+export TRACELOOP_HEADERS="Authorization=YOUR_KLOUDMATE_API_KEY"
+```
+
+## Turn off CrewAI's own tracing
+
+CrewAI has built-in telemetry and tracing that send data to CrewAI, and on the first run it can stop and ask whether to share the trace. Neither reaches KloudMate. Turn them off so only OpenLLMetry spans are sent and the run doesn't wait for an answer:
+
+```bash
+export CREWAI_DISABLE_TELEMETRY="true"
+export CREWAI_TRACING_ENABLED="false"
+```
+
+## Group a conversation
+
+Set a `session_id` association property before each run. KloudMate uses it as the conversation ID:
+
+```python
+Traceloop.set_association_properties({"session_id": "chat-42", "user_id": "user-17"})
+result = crew.kickoff(inputs={"topic": topic})
+```
+
+## Control what's captured
+
+OpenLLMetry records prompts and responses by default. To leave them out, set `TRACELOOP_TRACE_CONTENT=false`. Token counts, models, and latency are still recorded.
+
+## Known limitations
+
+- CrewAI doesn't create spans for its tools, including tools you define with `@tool`, so those calls appear only inside the model's messages, not on the **Tools** tab. Tool calls through an MCP server are traced.
+- Calls that CrewAI sends to OpenRouter carry a bare model name without the provider, so they can't be priced and count as **calls not priced**.
+
+## Check the data
+
+Run the crew once, then open **AI Observability → Traces**. Each crew run appears with its model calls, tokens, and estimated cost, and each CrewAI agent appears in the **Agents** table on the Overview tab.
+
+## Related resources
+
+- [OpenLLMetry with KloudMate](https://www.traceloop.com/docs/openllmetry/integrations/kloudmate)
+- [OpenLLMetry configuration](https://www.traceloop.com/docs/openllmetry/configuration)
+- [Instrument a Python LLM App with OpenLLMetry](../instrument-python-app-with-openllmetry/)

@@ -44,10 +44,10 @@ Replace `YOUR_KLOUDMATE_API_KEY` with your KloudMate API key. KloudMate expects 
 
 If the [KloudMate agent](../../../../kloudmate-agent/installation/) runs on the same machine, set `OTEL_EXPORTER_OTLP_ENDPOINT` to `http://localhost:4318` and leave out `OTEL_EXPORTER_OTLP_HEADERS`. The agent forwards the data with your workspace's API key.
 
-Claude Code reads the settings when a session starts, so restart Claude Code, or start a new session in Claude Desktop. Within a minute, the `claude_code.session.count` metric and the `claude_code.user_prompt` events appear in KloudMate under the service `claude-code`, or `claude-code-desktop` for a **Code** tab session.
+Claude Code reads the settings when a session starts, so restart Claude Code, or start a new session in Claude Desktop. Within a minute, data appears in KloudMate under the service `claude-code`, or `claude-code-desktop` for a **Code** tab session.
 
 :::tip
-You can also `export` the same variables in your shell before you run `claude`. Claude Desktop reads only a few variables from your shell profile, so use `settings.json` for the **Code** tab.
+You can also `export` the same variables in your shell before you run `claude`. For the Claude Desktop **Code** tab, put the variables in `~/.claude/settings.json` or a saved local environment. A value already set in the environment Desktop starts with takes precedence over `settings.json`.
 :::
 
 ### Turn on traces
@@ -59,7 +59,7 @@ Traces are in beta. Add these variables to the same `env` block to export a trac
 "OTEL_TRACES_EXPORTER": "otlp"
 ```
 
-Each trace starts at a `claude_code.interaction` span for one prompt. Under it, `claude_code.llm_request` spans carry the model, token counts, time to first token, and the `gen_ai.*` attributes, and `claude_code.tool` spans show each tool call, including the time spent waiting for your approval.
+Each prompt then appears in [AI Observability](/ai-observability/) as a **Claude Code Turn**, with its model calls, tool calls, tokens, and estimated cost. To see the prompt text in the turn, also set `OTEL_LOG_USER_PROMPTS=1`. See [Choose what content is exported](#choose-what-content-is-exported).
 
 ## Roll out to your team
 
@@ -87,7 +87,7 @@ As an Owner of a Claude for Teams or Claude for Enterprise organization, you can
 
 3\. Save. Claude Code picks up the settings the next time each developer starts it. Because the settings set an export endpoint, Claude Code asks each developer to approve them once, in their next interactive terminal session.
 
-Managed settings take precedence over each developer's own settings, so developers can't point the export somewhere else. They reach sessions that sign in with the organization's Team or Enterprise account. A session that uses an API key from the Claude Console, Amazon Bedrock, Google Cloud, or Microsoft Foundry doesn't fetch them.
+Managed settings take precedence over each developer's own settings, so developers can't point the export somewhere else. They reach sessions that sign in with the organization's Team or Enterprise account. Sessions that authenticate with a Claude Console API key, or that use Amazon Bedrock, Google Cloud, or Microsoft Foundry, don't receive them.
 
 For those sessions, or if you manage devices with MDM, deploy the same JSON as a `managed-settings.json` file instead:
 
@@ -113,7 +113,7 @@ For those sessions, or if you manage devices with MDM, deploy the same JSON as a
 
 ## Send Cowork events
 
-Cowork exports events, not metrics or traces, and it has its own settings. It's available on the Team and Enterprise plans, and needs Claude Desktop 1.1.4173 or later.
+Cowork exports events, not metrics or traces, and it has its own settings. It's available on the Team and Enterprise plans, and needs Claude Desktop 1.1.4173 or later for local sessions, or 1.22209.3 or later for cloud sessions. See [Monitor Claude Cowork activity with OpenTelemetry](https://support.claude.com/en/articles/14477985-monitor-claude-cowork-activity-with-opentelemetry).
 
 1\. On claude.ai, go to **Organization settings → Cowork**.
 
@@ -127,7 +127,7 @@ Cowork exports events, not metrics or traces, and it has its own settings. It's 
 
 3\. Save. Cowork reads the settings when a session starts, so the events arrive from the next Cowork session each user starts.
 
-In KloudMate, Cowork events are logs with the service `cowork`. They include `user_prompt`, `assistant_response`, `api_request` with the model, tokens, and estimated cost, `tool_result`, `tool_decision`, and `api_error`. A shared `prompt.id` links all the events from one prompt.
+Cowork events arrive in KloudMate **Logs** under the service `cowork`.
 
 ## Choose what content is exported
 
@@ -136,24 +136,18 @@ By default, Claude Code and Cowork export metadata only: counts, durations, mode
 | Variable | Adds |
 | --- | --- |
 | `OTEL_LOG_USER_PROMPTS=1` | Prompt text, and model response text unless you set `OTEL_LOG_ASSISTANT_RESPONSES=0` |
-| `OTEL_LOG_TOOL_DETAILS=1` | Tool arguments, such as Bash commands and file paths, and MCP server and tool names |
-| `OTEL_LOG_TOOL_CONTENT=1` | Tool output, on trace spans |
+| `OTEL_LOG_TOOL_DETAILS=1` | Tool arguments, such as Bash commands and file paths, and MCP server and tool names, on events |
+| `OTEL_LOG_TOOL_CONTENT=1` | Tool output, as an event on trace spans. Requires traces. |
 
-For Cowork, content is set on each device with the `otlpContentCapture` key of the [Claude Desktop managed configuration](https://claude.com/docs/cowork/monitoring#content-capture).
+Claude's answers, and tool arguments and results on trace spans, need Claude Code's detailed beta tracing, which is configured separately. See [Claude Code monitoring](https://code.claude.com/docs/en/monitoring-usage).
+
+For Cowork, content is set on each device with the `otlpContentCapture` key of the [Claude Desktop managed configuration](https://claude.com/docs/cowork/monitoring#content-capture). To make sure every device sends metadata only, set it to `[]`.
 
 Even with metadata only, events carry `user.email` when developers sign in with a Claude account, and Cowork events carry the paths of the folders a user connects. Content you turn on is stored in KloudMate under your workspace's retention settings.
 
 ## What you get in KloudMate
 
-| Signal | Examples |
-| --- | --- |
-| Metrics | `claude_code.session.count`, `claude_code.token.usage` by `type` and `model`, `claude_code.cost.usage` in USD, `claude_code.lines_of_code.count`, `claude_code.commit.count`, `claude_code.pull_request.count`, `claude_code.active_time.total` |
-| Events, as logs | `claude_code.user_prompt`, `claude_code.api_request`, `claude_code.api_error`, `claude_code.tool_result`, `claude_code.tool_decision` |
-| Traces | `claude_code.interaction`, `claude_code.llm_request`, `claude_code.tool` |
-
-Metrics and events carry `user.account_uuid`, `user.email`, `organization.id`, and `session.id`, so you can break cost and token usage down by developer. Claude Code sends metrics with delta temporality every 60 seconds, which KloudMate reads as-is. Cost values are estimates. For billing, use the Claude Console.
-
-For every metric, event, and attribute, see [Claude Code monitoring](https://code.claude.com/docs/en/monitoring-usage) and [Cowork monitoring](https://claude.com/docs/cowork/monitoring).
+Metrics and events carry the developer's account, so you can break cost and token usage down by developer in **Explore** or a dashboard. Cost values are estimates. For billing, use your billing dashboard. For every metric, event, and attribute, see [Claude Code monitoring](https://code.claude.com/docs/en/monitoring-usage) and [Cowork monitoring](https://claude.com/docs/cowork/monitoring).
 
 ## Troubleshooting
 
@@ -163,4 +157,4 @@ For every metric, event, and attribute, see [Claude Code monitoring](https://cod
 | Export errors with status 401 | `OTEL_EXPORTER_OTLP_HEADERS` doesn't hold a valid KloudMate API key, or the value has a `Bearer` prefix. |
 | Managed settings don't apply | Run `claude doctor` and read the `Managed settings (remote)` line. Exporter changes apply only when Claude Code restarts. |
 | No data from the Claude Desktop **Code** tab | Put the variables in `~/.claude/settings.json` or managed settings, not in your shell profile. Filter KloudMate by the service `claude-code-desktop`, not `claude-code`. |
-| No Cowork events | Start a new Cowork session after you save, and check that Claude Desktop is version 1.1.4173 or later. |
+| No Cowork events | Start a new Cowork session after you save, and check that Claude Desktop is version 1.1.4173 or later, or 1.22209.3 or later for cloud sessions. |

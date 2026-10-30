@@ -1,0 +1,122 @@
+---
+title: "Send LangChain and LangGraph Traces to KloudMate"
+description: "Trace LangChain and LangGraph agents in Python with OpenInference and send model calls, tool calls, tokens, and cost to KloudMate AI Observability."
+sidebar:
+  label: "LangChain and LangGraph"
+  order: 5
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+LangChain and LangGraph don't export OpenTelemetry traces on their own. The OpenInference instrumentation for LangChain adds them: it creates a span for each agent run, model call, and tool call, with token counts and messages. Send those spans to KloudMate to see each run in [AI Observability](/ai-observability/). The same instrumentation covers LangGraph, because LangGraph runs on LangChain.
+
+## Prerequisites
+
+- A KloudMate API key, from **Settings → Ingest Keys**.
+- Python 3.11 or later.
+
+## Instrument your app
+
+You can run your app under `opentelemetry-instrument` without changing its code, or set up the instrumentation in code.
+
+<Tabs syncKey="python-setup">
+<TabItem label="Without code changes">
+
+Install the instrumentation and the OpenTelemetry launcher:
+
+```bash
+pip install openinference-instrumentation-langchain opentelemetry-distro opentelemetry-exporter-otlp-proto-http
+```
+
+Point the exporter at KloudMate and start your app with `opentelemetry-instrument`, which loads the LangChain instrumentation automatically:
+
+```bash
+export OTEL_SERVICE_NAME="support-agent"
+export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
+export OTEL_EXPORTER_OTLP_ENDPOINT="https://otel.kloudmate.com:4318"
+export OTEL_EXPORTER_OTLP_HEADERS="Authorization=YOUR_KLOUDMATE_API_KEY"
+
+opentelemetry-instrument python app.py
+```
+
+</TabItem>
+<TabItem label="In code">
+
+Install the instrumentation and the OpenTelemetry SDK:
+
+```bash
+pip install openinference-instrumentation-langchain opentelemetry-sdk opentelemetry-exporter-otlp-proto-http
+```
+
+Set up a tracer provider and instrument LangChain before you build your chain or graph:
+
+```python
+from openinference.instrumentation.langchain import LangChainInstrumentor
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+provider = TracerProvider()
+provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
+trace.set_tracer_provider(provider)
+
+LangChainInstrumentor().instrument(tracer_provider=provider)
+```
+
+`OTLPSpanExporter()` reads the endpoint and header from the same `OTEL_EXPORTER_OTLP_*` variables shown in the other tab. Call `provider.shutdown()` before a script exits, so the last spans are sent.
+
+</TabItem>
+</Tabs>
+
+KloudMate expects the raw API key in the `Authorization` header, with no `Bearer` prefix. If the [KloudMate agent](/kloudmate-agent/) runs on the same machine, set the endpoint to `http://localhost:4318` and leave out the header.
+
+## Name your agent
+
+OpenInference marks a span as an agent only when its name contains "agent". Give your graph a name such as `support_agent` so each run appears as a turn of that agent:
+
+```python
+from langchain.agents import create_agent
+
+graph = create_agent(model, tools, name="support_agent")
+```
+
+A graph left with the default name `LangGraph` has no agent span, so its runs are named after the model instead.
+
+## Group a conversation
+
+Wrap each call in `using_session()` with an ID that stays the same for the whole conversation, such as your chat or thread ID:
+
+```python
+from openinference.instrumentation import using_session
+
+with using_session("chat-42"):
+    graph.invoke({"messages": [("user", question)]})
+```
+
+To attach a user ID as well, use `using_attributes(session_id="chat-42", user_id="user-17")`.
+
+## Control what's captured
+
+OpenInference records prompts, responses, and tool arguments by default. To leave them out, set these variables before your app starts:
+
+```bash
+export OPENINFERENCE_HIDE_INPUTS="true"
+export OPENINFERENCE_HIDE_OUTPUTS="true"
+```
+
+Hidden values are replaced with `__REDACTED__`. Token counts, models, and latency are still recorded.
+
+## Avoid double counting
+
+Instrument only one layer. If you also install the OpenAI or Anthropic SDK instrumentation, each model call is recorded twice, once by LangChain and once by the provider SDK, and AI Observability counts both.
+
+## Check the data
+
+Run the agent once, then open **AI Observability → Traces**. The run appears as **support_agent Turn** with its model, steps, tokens, and estimated cost. OpenInference doesn't report cache writes, so the estimated cost can be slightly lower than your bill when prompt caching is on.
+
+## Related resources
+
+- [OpenInference LangChain instrumentation](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-langchain)
+- [OpenInference configuration](https://github.com/Arize-ai/openinference/blob/main/spec/configuration.md)
+- [Instrument a Python LLM App with OpenLLMetry](../instrument-python-app-with-openllmetry/)

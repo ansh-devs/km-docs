@@ -1,0 +1,104 @@
+---
+title: "Send LlamaIndex Traces to KloudMate"
+description: "Trace LlamaIndex agents and query engines in Python with OpenInference and send model calls, tool calls, tokens, and cost to KloudMate AI Observability."
+sidebar:
+  label: "LlamaIndex"
+  order: 6
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+The OpenInference instrumentation for LlamaIndex creates a span for each agent run, model call, embedding, and tool call. Send those spans to KloudMate to see each run in [AI Observability](/ai-observability/).
+
+Use OpenInference rather than LlamaIndex's own `llama-index-observability-otel` package. Its spans don't use the GenAI attribute names, so model calls and tokens don't appear in AI Observability.
+
+## Prerequisites
+
+- A KloudMate API key, from **Settings → Ingest Keys**.
+- Python 3.10 or later.
+
+## Instrument your app
+
+<Tabs syncKey="python-setup">
+<TabItem label="Without code changes">
+
+Install the instrumentation and the OpenTelemetry launcher:
+
+```bash
+pip install openinference-instrumentation-llama-index opentelemetry-distro opentelemetry-exporter-otlp-proto-http
+```
+
+Point the exporter at KloudMate and start your app with `opentelemetry-instrument`, which loads the LlamaIndex instrumentation automatically:
+
+```bash
+export OTEL_SERVICE_NAME="rag-service"
+export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
+export OTEL_EXPORTER_OTLP_ENDPOINT="https://otel.kloudmate.com:4318"
+export OTEL_EXPORTER_OTLP_HEADERS="Authorization=YOUR_KLOUDMATE_API_KEY"
+
+opentelemetry-instrument python app.py
+```
+
+</TabItem>
+<TabItem label="In code">
+
+Install the instrumentation and the OpenTelemetry SDK:
+
+```bash
+pip install openinference-instrumentation-llama-index opentelemetry-sdk opentelemetry-exporter-otlp-proto-http
+```
+
+Set up a tracer provider and instrument LlamaIndex at startup:
+
+```python
+from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+provider = TracerProvider()
+provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
+trace.set_tracer_provider(provider)
+
+LlamaIndexInstrumentor().instrument(tracer_provider=provider)
+```
+
+`OTLPSpanExporter()` reads the endpoint and header from the same `OTEL_EXPORTER_OTLP_*` variables shown in the other tab. Call `provider.shutdown()` before a script exits, so the last spans are sent.
+
+</TabItem>
+</Tabs>
+
+KloudMate expects the raw API key in the `Authorization` header, with no `Bearer` prefix. If the [KloudMate agent](/kloudmate-agent/) runs on the same machine, set the endpoint to `http://localhost:4318` and leave out the header.
+
+## Group a conversation
+
+Wrap each call in `using_session()` with an ID that stays the same for the whole conversation:
+
+```python
+from openinference.instrumentation import using_session
+
+with using_session("chat-42"):
+    response = await agent.run(question)
+```
+
+## Control what's captured
+
+OpenInference records prompts, responses, and retrieved documents by default. To leave out inputs and outputs, set these variables before your app starts:
+
+```bash
+export OPENINFERENCE_HIDE_INPUTS="true"
+export OPENINFERENCE_HIDE_OUTPUTS="true"
+```
+
+Token counts, models, and latency are still recorded. The [OpenInference configuration](https://github.com/Arize-ai/openinference/blob/main/spec/configuration.md) lists the finer-grained settings, such as `OPENINFERENCE_HIDE_RETRIEVAL_DOCUMENTS`.
+
+## Check the data
+
+Run a query once, then open **AI Observability → Traces**. The run appears with its model calls, tokens, and estimated cost.
+
+## Related resources
+
+- [OpenInference LlamaIndex instrumentation](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-llama-index)
+- [LlamaIndex observability](https://developers.llamaindex.ai/python/framework/module_guides/observability/)
+- [Use AI Observability](/ai-observability/ai-observability-interface/)
