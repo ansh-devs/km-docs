@@ -10,7 +10,7 @@ import { Steps } from '@astrojs/starlight/components';
 
 Rehydration loads a time range from your S3 archive back into KloudMate, so you can search logs that are older than your retention in the Log Explorer. A rehydration stays searchable for 7 or 14 days, then KloudMate removes it.
 
-You need the **Owner** or **Developer** role to start, cancel, or delete a rehydration. Everyone in the workspace, including Viewers, can see rehydrations and search them.
+You need the **Admin** role to start, cancel, or delete a rehydration. Everyone in the workspace, including Viewers, can see rehydrations and search them.
 
 Only hours that have already been [archived](../archive-logs-to-s3/) can be loaded. The **Coverage** table on the **Archive** tab shows which days are in the archive.
 

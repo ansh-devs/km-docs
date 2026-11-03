@@ -18,7 +18,7 @@ Cold Storage archives logs only. Traces and metrics aren't archived. It's availa
 
 ## How it works
 
-1. **Archive.** An organization Owner connects an S3 bucket for the workspace. Every hour, KloudMate exports that hour's logs to the bucket as Parquet files. The files belong to you: they stay in your bucket, and you can query them with your own tools, such as Amazon Athena.
+1. **Archive.** An Admin connects an S3 bucket for the workspace. Every hour, KloudMate exports that hour's logs to the bucket as Parquet files. The files belong to you: they stay in your bucket, and you can query them with your own tools, such as Amazon Athena.
 2. **Rehydrate.** When you need logs from the archive, pick a time range and, optionally, the services you're interested in. You see an estimate of the size, load time, and charge before anything starts.
 3. **Search.** In the Log Explorer, switch the source from **Live logs** to the rehydration and search it like any other logs. When it expires, KloudMate removes the rehydrated logs. The files in your bucket aren't affected.
 
@@ -26,21 +26,21 @@ Cold Storage archives logs only. Traces and metrics aren't archived. It's availa
 
 Open **Settings → Cold Storage**.
 
-- **Archive**: connect the bucket, check that exports are working, and see which days are in the archive. Only organization Owners can use this tab.
+- **Archive**: connect the bucket, check that exports are working, and see which days are in the archive. Developers and Admins can see this tab, and only an Admin can change it.
 - **Rehydrations**: start a rehydration, follow its progress, and see when each one expires.
 
 In the Log Explorer, the **Live logs** button switches between live logs and the rehydrations you can search. See [Search a rehydration](./rehydrate-logs/#search-a-rehydration-in-the-log-explorer).
 
 ## Who can do what
 
-| Action | Owner | Developer | Viewer |
+| Action | Admin | Developer | Viewer |
 | --- | --- | --- | --- |
 | Connect, verify, replace, disable, or delete the bucket | Yes | No | No |
-| See the archive status and coverage | Yes | No | No |
+| See the archive status and coverage | Yes | Yes | No |
 | See rehydrations and search them in the Log Explorer | Yes | Yes | Yes |
-| Start, cancel, or delete a rehydration | Yes | Yes | No |
+| Start, cancel, or delete a rehydration | Yes | No | No |
 
-**Owner** is the organization role. **Developer** and **Viewer** are workspace roles.
+An organization Owner is an Admin in every workspace. A [custom role](../roles/custom-roles/) can include **Cold storage** and **Rehydrate** too.
 
 ## Pricing
 

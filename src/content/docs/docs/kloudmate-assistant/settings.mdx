@@ -37,7 +37,7 @@ Each skill is defined by the following properties:
 
 - **Title:** The name that users and agents will recognize when referencing or activating the skill.
 - **Content:** The actual skill instructions. Skills are typically written in Markdown and include a short metadata header followed by the detailed steps the Assistant should follow.
-- **Visibility:** When enabled, only you can use or manage the skill. When disabled, the skill is shared with the entire workspace.
+- **Visibility:** When enabled, only you can use or manage the skill. When disabled, the skill is shared with the entire workspace. Sharing a skill needs the **Developer** or **Admin** role.
 - **Enabled:** Turns the skill on or off without deleting it, useful when you want to temporarily pause a skill.
 
 The skills list can be filtered by All, Private, or Shared to help you quickly locate skills by their visibility scope.
@@ -72,7 +72,7 @@ Each tool server is a [connection](/platform/settings/connections/) that can be 
 
 ### Connect a tool server
 
-Anyone in the workspace can connect a tool server from this tab. You don't need the **Developer** role.
+You can connect a tool server from this tab with any role that can use the Assistant.
 
 1. Click **Connect** and pick a provider.
 2. Fill in the **Connection name**.
@@ -86,9 +86,9 @@ A tool server you connect here can be used only by the Assistant.
 
 A new tool server is **Private**. Only you can use it, so the Assistant uses it only in your own chats. That fits a personal token, such as your own GitHub account.
 
-To give everyone in the workspace the same server, a **Developer** connects it and then clicks **Share with workspace** in its row menu. A shared server belongs to the workspace, so only Developers can change it. A workflow's [Ask KloudMate Assistant](/workflows/actions/#ask-kloudmate-assistant) step can use only shared servers.
+To give everyone in the workspace the same server, an **Admin** connects it and then clicks **Share with workspace** in its row menu. A shared server belongs to the workspace, so only an Admin can edit or delete it. A workflow's [Ask KloudMate Assistant](/workflows/actions/#ask-kloudmate-assistant) step can use only shared servers.
 
-Without the **Developer** role, you can edit, re-check, and delete your own private tool servers, but you can't share them.
+Without the **Admin** role, you can edit, re-check, and delete your own private tool servers, but you can't share them.
 
 ### One tool server per provider
 
@@ -98,7 +98,7 @@ If you can use two servers of the same provider, the Assistant uses one that you
 
 ### Choose the tools the Assistant can use
 
-Open a server's row menu and click **Tools…** to see the tools the server offers and set how the Assistant uses each one. Click **Save** when you're done.
+Open a server's row menu and click **Tools…** to see the tools the server offers and set how the Assistant uses each one. Click **Save** when you're done. To change the tools of a shared server, you need the **Developer** or **Admin** role.
 
 ![The Tools dialog for a custom MCP server, with quick actions, a search box, and each tool's labels, Enabled switch, and Approval mode](./images/mcp-integrations-tools.png)
 
