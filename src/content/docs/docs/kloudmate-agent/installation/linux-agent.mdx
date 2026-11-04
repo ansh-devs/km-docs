@@ -7,7 +7,7 @@ sidebar:
 
 Install the **KloudMate Agent** on a Linux machine.
 
-**Supported Platforms:** Debian/Ubuntu, RHEL/CentOS.
+**Supported Platforms:** Debian/Ubuntu, RHEL/CentOS 7 and later. RHEL and CentOS 7 have [some limits](#rhel-and-centos-7).
 
 If your outbound traffic is restricted, see [Before you start](../before-you-start/) for the URLs and permissions to allow first.
 
@@ -93,6 +93,17 @@ Each container also shows up in the **Application Performance Monitoring** card 
 PHP containers get the **SDK** option without a redeploy: the agent injects the tracer and reloads the web server (Apache or php-fpm). On a Linux host this is opt-in, because the tracer reports to port `8126`, which a Datadog agent may already use. See [Container SDK on the Linux agent](../../platform-notes/docker/#container-sdk-on-the-linux-agent). In Docker mode it's on by default.
 
 For monitoring containers, a Linux service and a Docker-mode agent are equivalent. Choose between them by how you want to run the agent, not by what they can see. See [Docker mode vs the Linux agent](../../platform-notes/docker/#docker-mode-vs-the-linux-agent).
+
+## RHEL and CentOS 7
+
+RHEL and CentOS 7 need agent version **2.8.1 or later**. Earlier packages fail to install there with a `GLIBC` dependency error.
+
+Host metrics and logs work as usual. The older kernel and glibc on these systems limit the rest:
+
+- **eBPF monitoring isn't available.** It needs kernel 4.14 or later, and these systems run 3.10. The agent skips it and keeps collecting metrics and logs.
+- **.NET auto-instrumentation isn't supported.** The profiler needs a newer glibc, and the .NET versions it supports don't run on these systems. Your .NET applications keep running, without traces from the agent.
+- **PHP 8.2 and later uses the trace extension** instead of the native OpenTelemetry extension, which needs a newer glibc. The agent downloads the trace extension when you turn on instrumentation, so the host needs outbound HTTPS to `github.com` at that point.
+- **Python auto-instrumentation needs Python 3.10 to 3.14,** so it doesn't cover the Python that ships with these systems.
 
 ## Configuration and next checks
 

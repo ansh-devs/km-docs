@@ -27,6 +27,8 @@ On Kubernetes, Helm rolls the release back if the new pods don't become ready. O
 
 :::note
 One-click upgrade needs agent version **2.5.0 or later**. Upgrade an older agent [manually](#upgrade-manually) once, and later releases can then be applied from the dashboard.
+
+On RHEL or CentOS 7.8 and older, an agent older than 2.8.1 also needs one manual upgrade, because its one-click upgrade can't start on that version of systemd.
 :::
 
 ### When the Upgrade button is disabled
@@ -74,7 +76,15 @@ Your existing `/etc/kmagent/agent.yaml` is kept as it is, including any settings
 
 ### Windows
 
-Download the latest installer from **Settings → Agents & Pipelines → Add Agent → Windows** and run it from an elevated (Administrator) PowerShell prompt:
+Run this in PowerShell as Administrator, and press Enter at the API key prompt to keep your existing configuration:
+
+```powershell
+irm https://cdn.kloudmate.com/scripts/install_windows.ps1 | iex
+```
+
+Your existing `C:\ProgramData\kmagent\agent.yaml` is kept, including any settings you've added by hand. The account-specific command you copy from KloudMate keeps it too, and doesn't ask for a key. If you type a new key at the prompt, the file is replaced with that key and endpoint, and your hand-added settings are lost.
+
+To upgrade with the installer instead, download the latest one from **Settings → Agents & Pipelines → Add Agent → Windows** and run it from an elevated (Administrator) PowerShell prompt:
 
 ```powershell
 .\kmagent-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART

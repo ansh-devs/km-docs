@@ -55,6 +55,11 @@ An ASP.NET Core application pool must be set to "No Managed Code" for the profil
 
 On Linux, the agent instruments .NET through the same CLR profiler, loaded through the `CORECLR_*` and `DOTNET_STARTUP_HOOKS` variables in a systemd startup config, then restarts the service. This is less common than .NET on Windows. .NET under PM2 isn't handled automatically; run a .NET service under systemd to instrument it.
 
+The profiler can't load on every Linux host, because it needs a recent glibc:
+
+- **RHEL and CentOS 7 aren't supported.** See [RHEL and CentOS 7](../../installation/linux-agent/#rhel-and-centos-7).
+- **On arm64, the profiler needs glibc 2.35 or later,** so it doesn't load on arm64 RHEL 9 or Amazon Linux 2023.
+
 ## On Kubernetes
 
 Choose **SDK** for the workload and the agent adds the OpenTelemetry Operator annotation `instrumentation.opentelemetry.io/inject-dotnet`. The Operator injects the profiler, and that workload's pods roll to pick it up.
