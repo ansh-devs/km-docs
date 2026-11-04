@@ -82,7 +82,7 @@ Run this in PowerShell as Administrator, and press Enter at the API key prompt t
 irm https://cdn.kloudmate.com/scripts/install_windows.ps1 | iex
 ```
 
-Your existing `C:\ProgramData\kmagent\agent.yaml` is kept. If you enter a key, or run a command that sets `KM_API_KEY`, the file is replaced with that key and endpoint, and any settings you've added by hand are lost.
+Your existing `C:\ProgramData\kmagent\agent.yaml` is kept, including any settings you've added by hand. The account-specific command you copy from KloudMate keeps it too, and doesn't ask for a key. If you type a new key at the prompt, the file is replaced with that key and endpoint, and your hand-added settings are lost.
 
 To upgrade with the installer instead, download the latest one from **Settings → Agents & Pipelines → Add Agent → Windows** and run it from an elevated (Administrator) PowerShell prompt:
 

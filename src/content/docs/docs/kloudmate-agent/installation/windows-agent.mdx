@@ -74,6 +74,8 @@ To skip the prompts, set your key and endpoint first:
 $env:KM_API_KEY="YOUR_API_KEY"; $env:KM_COLLECTOR_ENDPOINT="https://otel.kloudmate.com:4318"; irm https://cdn.kloudmate.com/scripts/install_windows.ps1 | iex
 ```
 
+On a host that's already configured, the script keeps the existing configuration and ignores `KM_API_KEY`.
+
 ### Install with the wizard
 
 **Step 1:** Navigate to the **Settings → Agents & Pipelines** section in your KloudMate account.
