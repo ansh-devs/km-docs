@@ -54,6 +54,28 @@ View all collected data in these KloudMate sections:
 
 ## Install Agent
 
+Install the agent with one PowerShell command. If you'd rather click through the installer, see [Install with the wizard](#install-with-the-wizard).
+
+**Step 1:** On the Windows host, open PowerShell as Administrator. The install stops with an error if PowerShell isn't elevated.
+
+**Step 2:** Run the install command:
+
+```powershell
+irm https://cdn.kloudmate.com/scripts/install_windows.ps1 | iex
+```
+
+**Step 3:** Enter your API key and collector endpoint when asked. You'll find your key under **Settings → Agents & Pipelines → Add Agent → Windows**. Press Enter at the endpoint prompt to use `https://otel.kloudmate.com:4318`.
+
+The script downloads the latest installer, verifies its checksum, and installs the agent in the background, so no wizard opens. It then checks that the `kmagent` service is running and connected to KloudMate. If the agent can't connect, for example because of a wrong API key, the script shows you the error.
+
+To skip the prompts, set your key and endpoint first:
+
+```powershell
+$env:KM_API_KEY="YOUR_API_KEY"; $env:KM_COLLECTOR_ENDPOINT="https://otel.kloudmate.com:4318"; irm https://cdn.kloudmate.com/scripts/install_windows.ps1 | iex
+```
+
+### Install with the wizard
+
 **Step 1:** Navigate to the **Settings → Agents & Pipelines** section in your KloudMate account.
 
 **Step 2:** Click **Add Agent**, select **Windows**, and click **Continue**. On the **API key** step, click **Create backend key**, or select **Use existing key** and paste your backend ingest key. Then click **Continue**.

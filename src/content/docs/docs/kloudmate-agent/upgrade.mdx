@@ -76,7 +76,15 @@ Your existing `/etc/kmagent/agent.yaml` is kept as it is, including any settings
 
 ### Windows
 
-Download the latest installer from **Settings → Agents & Pipelines → Add Agent → Windows** and run it from an elevated (Administrator) PowerShell prompt:
+Run this in PowerShell as Administrator, and press Enter at the API key prompt to keep your existing configuration:
+
+```powershell
+irm https://cdn.kloudmate.com/scripts/install_windows.ps1 | iex
+```
+
+Your existing `C:\ProgramData\kmagent\agent.yaml` is kept. If you enter a key, or run a command that sets `KM_API_KEY`, the file is replaced with that key and endpoint, and any settings you've added by hand are lost.
+
+To upgrade with the installer instead, download the latest one from **Settings → Agents & Pipelines → Add Agent → Windows** and run it from an elevated (Administrator) PowerShell prompt:
 
 ```powershell
 .\kmagent-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
