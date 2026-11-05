@@ -1,13 +1,14 @@
 ---
 /**
- * Account button for the header: a link to the app's sign-in. A signed-in
- * user who follows it lands on their dashboard.
+ * Account button for the header: a link to the app's root. The app sends a
+ * returning user on to the region they last used, a signed-out user to
+ * sign-in, and a signed-in user to their dashboard.
  *
  * The docs don't call the API: it answers the web app's origin only.
  */
 ---
 
-<a class="user-cta" href="https://app.kloudmate.com/login">Log in</a>
+<a class="user-cta" href="https://app.kloudmate.com/">Log in</a>
 
 <style>
   .user-cta {
