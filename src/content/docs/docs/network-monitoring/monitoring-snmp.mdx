@@ -6,7 +6,7 @@ sidebar:
   order: 1
 ---
 
-Add SNMP devices when you already know the addresses you want to poll, such as a core switch, an edge router, a firewall, or a rack PDU. The **Add SNMP devices** wizard walks you through picking an agent, listing targets, entering credentials, and choosing a device profile. From there the agent polls each device on a schedule and reports its metrics to KloudMate.
+Add SNMP devices when you already know the addresses you want to poll, such as a core switch, an edge router, a firewall, or a rack PDU. The **Add SNMP devices** wizard walks you through picking an agent, listing targets, entering credentials, and choosing a device profile and polling interval. From there the agent polls each device on a schedule and reports its metrics to KloudMate.
 
 To sweep a subnet and monitor whatever answers instead, use [Discover devices](/network-monitoring/discover-devices/).
 
@@ -61,6 +61,14 @@ A device profile decides which tables the agent walks and what metrics it emits.
 
 ![The Profile step with the Auto-detect, Pick from catalog, and Custom options, and the optional Extra capabilities checkboxes for BGP peers, MPLS L3VPN, LLDP neighbours, and IP SLA](./images/snmp-wizard-profile.png)
 
+#### Polling interval
+
+**Polling interval** sets how often the agent polls the devices in this batch: **Every 60 seconds** (the default), **Every 5 minutes**, or **Every 15 minutes**. A slower interval suits devices that don't need minute-level detail, such as access switches and PDUs. Every metric from the device, including `km_snmp_up`, arrives at that pace. MAC address tables are read every 5 minutes, or at the device's interval when it's longer.
+
+Device status follows the interval. A device shows as **Not reporting** only after its last data is more than three polling intervals old, and never sooner than 5 minutes, so a device polled every 15 minutes isn't flagged between polls.
+
+The 5- and 15-minute options need agent 2.11.0 or later. On an older agent the field stays at 60 seconds. To change the interval of devices you've already added, edit them from **Configure**.
+
 #### Extra capabilities
 
 Under **Extra capabilities (optional)**, turn on tables that only matter for routers and layer-3 devices. Leave them off for plain hosts and switches, where they add polling work with no benefit.
@@ -69,16 +77,17 @@ Under **Extra capabilities (optional)**, turn on tables that only matter for rou
 |---|---|
 | **BGP peers** | Peer state per neighbour, for edge and ISP routers. |
 | **MPLS L3VPN** | VRF operational status and route counts. |
-| **LLDP neighbours** | Link-layer neighbour and port data, which feeds the [Topology](/network-monitoring/network-page/) map. |
 | **IP SLA** | Cisco IP SLA reachability probes, for per-WAN ISP verdicts. |
+
+LLDP and CDP neighbours aren't on this list because the agent collects them from every device. See [Neighbours and MAC address tables](#neighbours-and-mac-address-tables).
 
 ### 5. Tags
 
-Add key-value tags such as `site`, `group`, or `role`, or anything you use to organize devices. They apply to every device in this batch and drive the filtering and grouping in Network Monitoring. Grouping the Overview status board by `site` or `role`, for example, only works if your devices carry that tag.
+Add key-value tags such as `site`, `group`, or `role`, or anything you use to organize devices. They apply to every device in this batch and drive the filtering and grouping in Network Monitoring. Grouping the Overview's **Devices** table by `site` or `role`, for example, only works if your devices carry that tag.
 
 ### 6. Review & apply
 
-Check the staged devices, then select **Apply configuration**. Saving briefly restarts data collection on that agent, so the wizard batches every device in the run and applies them together to keep the interruption short.
+Check the staged devices, then select **Apply configuration**. On agent 2.11.0 or later, a change that only adds, edits, or removes SNMP devices reaches the running agent without restarting data collection. The exception is the first SNMP device on an agent, or removing the last one. Older agents briefly restart data collection on every save, so the wizard applies every device in the run together to keep the interruption short.
 
 ## What you get
 
@@ -93,3 +102,24 @@ Within a few minutes the devices appear on the **All devices** tab with an **Up*
 Per device, you get `snmp_device_uptime`, `snmp_cpu_usage`, and `snmp_memory_usage` (plus `snmp_memory_used`, `_free`, and `_total`). The agent's own reachability check is `km_snmp_up`, which reads `1` when the device answers and `0` when it doesn't. Turn on capabilities and you also get `snmp_bgp_peer_state`, `snmp_mpls_l3vpn_vrf_oper_status`, `snmp_isp_reachability`, and related metrics.
 
 If a device stays **Down** or never appears, work through the checklist in [Manage and troubleshoot](/network-monitoring/manage-troubleshoot/).
+
+## Neighbours and MAC address tables
+
+On agent 2.11.0 or later, the agent reads the LLDP and CDP neighbour tables of every SNMP device, including devices found by [discovery](/network-monitoring/discover-devices/). There's nothing to turn on. Each neighbour becomes a `snmp_topology_link` series with `neighbor_device`, `neighbor_port`, `local_port_num`, and `discovery_protocol` (`lldp` or `cdp`), and these series draw the [Topology](/network-monitoring/network-page/#topology-tab) map. A neighbour that speaks both protocols is reported once by each, and the map shows them as one link.
+
+Agents older than 2.11.0 don't collect CDP, and they collect LLDP only for devices that were set up with the **LLDP neighbours** capability.
+
+Switches also report their MAC address tables, every 5 minutes or at the device's polling interval when that's longer:
+
+- `snmp_interface_mac_count`: how many addresses each port has learned, across all VLANs.
+- `snmp_fdb_entry`: one series per learned address, with `mac_address`, `interface_name`, `vlan`, and `ip_address` when the device's own ARP table has it.
+
+On agent 2.11.0 or later, the agent reads every VLAN's addresses. It uses the Q-BRIDGE-MIB table where the switch has one. On a Cisco switch without it, the agent walks each active VLAN with `community@<vlan>` on v1 and v2c, or the `vlan-<id>` context on v3. Other switches report the plain BRIDGE-MIB table, which has no `vlan`. Older agents read only the plain table, which on Cisco covers only the default VLAN.
+
+Large tables have limits. A device with more than 5,000 learned addresses reports no `snmp_fdb_entry` series, and per-port counts stop past 20,000 table rows. These tables feed the port and host views described in [Using Network Monitoring](/network-monitoring/network-page/#hosts-on-switch-ports).
+
+## Sensors
+
+The device drawer's **Overview** tab has a **Sensors** panel with the device's temperature, fan, power, and voltage readings. Sensors in a fault state, such as a failed fan or a power supply that's off, are flagged and listed first within their type.
+
+The panel reads the sensor metrics that the device's profile already collects: Cisco environmental and FRU status, ENTITY-SENSOR-MIB sensors, and the Huawei, Aruba, MikroTik, and Dell OS10 sensor tables. If the profile collects none of these, the panel stays empty. Readings whose unit isn't fixed by the MIB, such as volts and watts, are shown as the device reports them.
