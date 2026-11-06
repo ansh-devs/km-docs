@@ -1,25 +1,26 @@
 ---
 title: "Network Monitoring"
-description: "Monitor SNMP devices, site reachability, and traffic flow across your network with the KloudMate Agent."
+description: "Monitor SNMP devices, site reachability, traffic flow, and SNMP traps and syslog across your network with the KloudMate Agent."
 sidebar:
   label: "Overview"
   order: 0
 ---
 
-Use **Network Monitoring** to watch the routers, switches, firewalls, access points, and PDUs that carry your traffic. You poll them over SNMP for health and interface metrics, check reachability for the sites that can't speak SNMP, and read the application traffic mix from NetFlow or sFlow.
+Use **Network Monitoring** to watch the routers, switches, firewalls, access points, and PDUs that carry your traffic. You poll them over SNMP for health and interface metrics, check reachability for the sites that can't speak SNMP, read the traffic mix from NetFlow or sFlow, and collect the traps and syslog your devices send.
 
 A Linux or Docker [KloudMate Agent](/kloudmate-agent/) does the collecting. It polls devices over the network, so one agent can watch an entire site, and nothing gets installed on the devices themselves.
 
 :::note
-Network monitoring runs on Linux and Docker agents only. Kubernetes agents can't poll SNMP, run reachability checks, or listen for flow data.
+Network monitoring runs on Linux and Docker agents only. Kubernetes agents can't poll SNMP, run reachability checks, or listen for flow, traps, or syslog.
 :::
 
 ## What you can monitor
 
 - **SNMP devices**: interface throughput and errors, CPU, memory, uptime, and vendor-specific health. Built-in profiles cover Cisco, Juniper, Arista, HPE, Aruba, Dell, Fortinet, Palo Alto, MikroTik, F5, APC, and many more.
-- **Sites without SNMP**: a gateway-and-internet ping pair that shows whether the local network is up and whether the ISP link is working.
-- **Traffic flow**: the per-application byte and packet mix on a link, from NetFlow, IPFIX, or sFlow exporters.
-- **Routing and links**: BGP peers, MPLS L3VPN VRFs, IP SLA probes, and LLDP/CDP topology, once you turn those capabilities on.
+- **Sites without SNMP**: a gateway-and-internet ping pair that shows whether the local network is up and whether the ISP link is working, with jitter and a hop-by-hop path to the internet.
+- **Traffic flow**: the per-application byte and packet mix on a link, the top talkers, and the services and CDNs behind the traffic, from NetFlow, IPFIX, or sFlow exporters.
+- **Device events**: SNMP traps and syslog, matched to the device that sent them.
+- **Routing and links**: LLDP and CDP topology from every device, plus BGP peers, MPLS L3VPN VRFs, and IP SLA probes once you turn those capabilities on.
 
 ## The Network Monitoring tabs
 
@@ -27,11 +28,12 @@ Open **Network Monitoring**. You land on the **Overview** tab.
 
 | Tab | What it shows |
 |---|---|
-| **Overview** | Network-wide health: problem tiles, a live problems feed, and a status board grouped by site, role, or vendor. |
+| **Overview** | Network-wide health: overall status and uptime, the busiest ports, the probable cause of an outage, current problems, and every device grouped by site, role, or vendor. |
 | **All devices** | The full, searchable table of SNMP devices with their current status and last-seen time. |
-| **Reachability** | Ping results for sites monitored without SNMP. |
-| **Traffic** | The application traffic mix from your flow listeners. |
-| **Topology** | A link map drawn from LLDP and CDP neighbour data. |
+| **Reachability** | Ping results, jitter, and traced paths for sites monitored without SNMP. |
+| **Traffic** | The application mix, top talkers, services, and flow health from your flow listeners. |
+| **Topology** | A link map drawn from LLDP and CDP neighbour data, with the links that were lost. |
+| **SLA and capacity** | Availability per site and device, and p95 utilization per port, over a period. |
 
 For how to read each tab, see [Using Network Monitoring](/network-monitoring/network-page/).
 
@@ -45,6 +47,7 @@ Everything is configured in **Network Monitoring**. There are no collector files
 - [Discover devices](/network-monitoring/discover-devices/): scan IP ranges and monitor what answers.
 - [Monitor sites without SNMP](/network-monitoring/reachability-checks/): add gateway and internet ping checks.
 - [Flow monitoring](/network-monitoring/flow-monitoring/): listen for NetFlow, IPFIX, or sFlow.
+- [Traps and syslog](/network-monitoring/traps-and-syslog/): receive SNMP traps and syslog from your devices.
 
 To change or remove anything later, open **Configure**. See [Manage and troubleshoot](/network-monitoring/manage-troubleshoot/).
 
