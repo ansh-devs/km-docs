@@ -6,7 +6,7 @@ sidebar:
   order: 2
 ---
 
-You need the **Developer** role to connect an account. Open **Settings → Connections** and click **Connect**. To connect a tool server for the Assistant without that role, use [Assistant → MCP Integrations](/kloudmate-assistant/settings/#connect-a-tool-server).
+You need the **Admin** role to connect an account. Open **Settings → Connections** and click **Connect**. To connect a tool server for the Assistant without that role, use [Assistant → MCP Integrations](/kloudmate-assistant/settings/#connect-a-tool-server).
 
 The picker lists only the providers your organization can connect. If a provider you expect is missing, see [Providers](../providers/#providers-in-your-plan).
 
@@ -50,13 +50,13 @@ That matters most for app-event triggers. A Slack account connected from Setting
 
 Every connection is **Workspace** or **Private**. A connection that can be used only for **AI** starts **Private**. Every other connection starts **Workspace**.
 
-A **Workspace** connection belongs to the workspace. Anyone in the workspace can use it, anyone with the **Developer** role can manage it, and it keeps working when whoever connected it leaves.
+A **Workspace** connection belongs to the workspace. Anyone in the workspace can use it, anyone with the **Admin** role can manage it, and it keeps working when whoever connected it leaves.
 
 **Private** restricts a connection to its creator. Only a connection whose one capability is **AI** can be private, so use it for a personal GitHub or Google account that you want the Assistant to use on your behalf and nobody else's.
 
 A private connection is invisible to everyone else: it's absent from their list, and they can't use it even if they know its id.
 
-To make a connection private, set **Visibility** under **Edit**. To share a private connection with the workspace, use **Share with workspace** on its row menu. Only a **Developer** who created the connection can share it.
+To make a connection private, set **Visibility** under **Edit**. To share a private connection with the workspace, use **Share with workspace** on its row menu. Only an **Admin** who created the connection can share it.
 
 ## Related
 

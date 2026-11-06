@@ -1,26 +1,76 @@
 ---
-title: "Users & Permissions"
-description: "Invite users and manage access levels across KloudMate workspaces."
+title: "Users"
+description: "Invite people to your organization, give them a role in each workspace, and change or remove their access."
 sidebar:
-  label: "Users & Permissions"
+  label: "Users"
   order: 3
 ---
-User management is available to organization owners. Use this page to invite users, assign workspace permissions, and remove access when needed.
 
-## What You Can Do
+import { Steps } from '@astrojs/starlight/components';
 
-- Add new users
-- Update permissions for existing users
-- Remove users from the organization
+Use **Settings → Users** to invite people to your organization and decide what they can do in each workspace. Every member can see the list of users. Only an Owner can invite, change, or remove users.
 
-## Invite a User
+Each person has an organization role (**Owner** or **User**) and a role in each workspace. For what each role can do, see [Roles and permissions](../roles/).
 
-Open **Settings -> Users** and click **Invite User** or **Add User**.
+## Invite a user
 
-Enter the user's email address and assign the required permissions.
+<Steps>
 
-![image](./images/users-_-permissions-2.png)
+1. Open **Settings → Users** and click **Add User**.
 
-Permissions can be configured separately for each workspace. If no permission is assigned for a workspace, the user will not have access to it.
+2. Enter the person's **Email address**.
 
-![image](./images/users-_-permissions-3.png)
+3. Under **Organization role**, select **Owner** or **User**. An Owner is an Admin in every workspace, so you don't pick workspace roles for an Owner.
+
+4. For a User, pick a role in each workspace they need: **Admin**, **Developer**, **Viewer**, or one of your [custom roles](../roles/custom-roles/). Leave **No access** in the other workspaces. A User needs a role in at least one workspace.
+
+5. Click **Submit**.
+
+</Steps>
+
+The person gets the invitation by email. After they sign in, they can also accept it from **Settings → Pending Invitations**. If your plan doesn't include custom roles, you can't pick one.
+
+## Manage invitations
+
+Invitations that haven't been accepted yet are on the **Invitations** tab. An invitation expires 7 days after you send it.
+
+- To send an invitation again, click **Resend**. This works on an expired invitation too. The person gets the invitation by email again, and it's valid for another 7 days.
+- To change the roles on an invitation, invite the same email address again with the new roles.
+- To cancel an invitation, click its delete icon.
+
+Only an Owner can resend an invitation. You can resend the same invitation once a minute at most.
+
+## Change a user's roles
+
+<Steps>
+
+1. Open **Settings → Users**.
+
+2. Open the actions menu on the user's row and click **Edit**.
+
+3. Change the **Organization role**, or the **Role** in each workspace. Select **No access** to remove the user from a workspace.
+
+4. Click **Save**.
+
+</Steps>
+
+These rules apply to every change:
+
+- Only an Owner can make someone an Owner, change an Owner's role, or remove an Owner.
+- Nobody can change their own roles. Ask another Owner.
+- An organization always has at least one Owner. To change the role of the only Owner, make another member an Owner first.
+
+## Remove a user
+
+Open the actions menu on the user's row, click **Edit**, then click **Remove user from Organization**. The person loses access to the organization and every workspace in it.
+
+## Add users through single sign-on
+
+If your organization uses single sign-on, people can get an account the first time they sign in through your identity provider. You pick the organization role and the workspace roles that those new accounts get. See [Provisioning & enforcement](../sso/provisioning-and-enforcement/).
+
+## Related
+
+- [Roles and permissions](../roles/)
+- [Custom roles](../roles/custom-roles/)
+- [Workspaces](../workspaces/)
+- [Single Sign-On (SSO)](../sso/)

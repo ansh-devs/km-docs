@@ -1,0 +1,149 @@
+---
+title: "Permission reference"
+description: "Every permission in KloudMate, by module, with what it lets a person do and which built-in roles have it."
+sidebar:
+  label: "Permission reference"
+  order: 3
+---
+
+A permission lets a person do one kind of task in one module, and a role is a set of permissions. An Owner has every permission in every workspace. For a summary by role, see [Workspace roles](../#workspace-roles).
+
+**Read** is part of every role, built-in or custom, on every module except **Workspace settings**. A [custom role](../custom-roles/) can add any other permission on this page.
+
+A permission works only when your plan includes its module or feature. See [Plan limits](../#plan-limits).
+
+## Workspace permissions
+
+### Dashboards
+
+| Permission | What it lets you do | Built-in roles |
+| --- | --- | --- |
+| **Read** | See dashboards and folders, star them, and email yourself an export. | All roles |
+| **Manage** | Create, import, edit, and delete dashboards and folders. Save a panel from Explore to a dashboard. | Developer, Admin |
+| **Share** | Turn on, change, regenerate, or turn off a dashboard's public link. Anyone with the link sees every panel with the workspace's data. | Admin |
+
+### Reports
+
+| Permission | What it lets you do | Built-in roles |
+| --- | --- | --- |
+| **Read** | See reports and generated reports, and download them. | All roles |
+| **Manage** | Create, edit, and delete scheduled reports. Send a report now. | Developer, Admin |
+
+### Alerts
+
+| Permission | What it lets you do | Built-in roles |
+| --- | --- | --- |
+| **Read** | See alerts, alert rules, history, routing rules, silences, and maintenance windows. Give feedback on how alerts are grouped, and export rules as JSON. | All roles |
+| **Operate** | Create or end a silence. Pause or resume an alert rule. Dismiss an instance that stopped reporting. Manage maintenance windows. Create or unlink a Jira ticket. | Developer, Admin |
+| **Configure** | Create, copy, import, test, edit, move, and delete alert rules. Manage folders and routing rules, and get AI suggestions for routing. Set up Smart Alerts. | Developer, Admin |
+
+To turn on automatic root cause analysis in a routing rule, you also need AI Assistant **Investigate**.
+
+### Issues
+
+| Permission | What it lets you do | Built-in roles |
+| --- | --- | --- |
+| **Read** | See issues. Comment, mention people, and watch an issue. | All roles |
+| **Operate** | Resolve, reopen, ignore, and stop ignoring issues. Assign people. Create or unlink a Jira ticket. | Developer, Admin |
+| **Configure** | Create, edit, turn on or off, and delete issue notification policies. | Developer, Admin |
+
+### Incidents
+
+| Permission | What it lets you do | Built-in roles |
+| --- | --- | --- |
+| **Read** | See incidents, services, and on-call schedules. Add notes to an incident. | All roles |
+| **Operate** | Create an incident. Acknowledge, resolve, or reopen an incident, also from Slack, Microsoft Teams, or a voice call. Change the severity or summary. Add or remove responders. Start or archive a war room. Add or remove on-call overrides. | Developer, Admin |
+| **Configure** | Manage services, alert sources, escalation policies, on-call schedules, and incident routing rules, and test a routing rule. Change the war room settings. Install Slack ChatOps. | Developer, Admin |
+
+### Status pages
+
+| Permission | What it lets you do | Built-in roles |
+| --- | --- | --- |
+| **Read** | See status pages, their components, incidents, and updates. | All roles |
+| **Post** | Publish an incident to a status page. Create, edit, and delete status page incidents, and post updates for customers. | Developer, Admin |
+| **Manage** | Create, edit, brand, publish, unpublish, and delete status pages and their components. Set up, verify, or remove a custom domain. | Admin |
+
+### Reliability
+
+| Permission | What it lets you do | Built-in roles |
+| --- | --- | --- |
+| **Read** | See SLOs and preview them. | All roles |
+| **Configure** | Create, edit, and delete SLOs and burn-rate alerts. Preview an SLO before you save it. | Developer, Admin |
+
+### Synthetic monitoring
+
+| Permission | What it lets you do | Built-in roles |
+| --- | --- | --- |
+| **Read** | See monitors and their results. | All roles |
+| **Operate** | Pause or resume a monitor. Manage maintenance windows for monitors. | Developer, Admin |
+| **Configure** | Create, edit, and delete monitors. Run a test check. | Developer, Admin |
+
+### Workflows
+
+| Permission | What it lets you do | Built-in roles |
+| --- | --- | --- |
+| **Read** | See workflows, runs, versions, templates, and storage. Run, test-run, retrigger, or cancel a workflow that allows runs by anyone in the workspace. | All roles |
+| **Operate** | Run, test-run, retrigger, or cancel any workflow. | Developer, Admin |
+| **Configure** | Create, import, edit, publish, turn on or off, export, and delete workflows, and restore an earlier version. See or rotate webhook and form URLs. Use the builder's test tools. Manage storage and variables that aren't secret. Use a secret variable in a step without seeing its value. | Developer, Admin |
+| **Secrets** | Create, rotate, reveal, and delete secret variables. **Reveal value** shows the value only to the person who created the secret, or to an Owner. | Admin |
+
+### AI Assistant
+
+| Permission | What it lets you do | Built-in roles |
+| --- | --- | --- |
+| **Use** | Chat with the assistant and approve its tool calls. Keep your own private prompts, skills, and tool servers. Connect your own AI client over MCP. | All roles |
+| **Investigate** | Start an investigation, or run a root cause analysis on an alert group or from an incident. These use AI credits. | All roles |
+| **Configure** | Share a skill with the workspace, or edit a shared skill. Choose which tools of a shared tool server are on, and which ones need approval. | Developer, Admin |
+
+### Metrics
+
+| Permission | What it lets you do | Built-in roles |
+| --- | --- | --- |
+| **Read** | See metrics and inventory on every screen, including hosts, Kubernetes, serverless, network monitoring, and the metrics in APM and Databases. | All roles |
+
+### Traces
+
+| Permission | What it lets you do | Built-in roles |
+| --- | --- | --- |
+| **Read** | See traces and profiles on every screen. Save trace queries. | All roles |
+
+### Logs
+
+| Permission | What it lets you do | Built-in roles |
+| --- | --- | --- |
+| **Read** | See logs on every screen. Save log queries and folders. See a cloud account's CloudWatch log groups. | All roles |
+| **Rehydrate** | Estimate, start, cancel, or remove a rehydration from cold storage. A rehydration costs money. | Admin |
+
+### Real User Monitoring
+
+| Permission | What it lets you do | Built-in roles |
+| --- | --- | --- |
+| **Read** | See sessions, session replays, and journeys. Save segments. | All roles |
+| **Configure** | Manage funnels and page groups. Delete an uploaded source map. | Developer, Admin |
+
+### Workspace settings
+
+| Permission | What it lets you do | Built-in roles |
+| --- | --- | --- |
+| **Read** | See the workspace's settings pages. | Developer, Admin |
+| **Data sources** | Connect, set up, and remove cloud accounts. Change what they sync, their regions, and their tags. Manage CloudWatch log groups. Sync inventory now. Ignore a Lambda function. | Admin |
+| **Agents** | Configure agents and their integrations. Preview logs. Upgrade, restart, and remove agents. Allow or block runbook scripts on a host. Manage ingest pipelines. | Admin |
+| **Ingest keys** | Create, edit, and revoke any ingest key in the workspace. | Admin |
+| **Notification channels** | Create, edit, and delete notification channels. Set up the KloudMate app for Microsoft Teams. Preview a webhook body. See a channel's address, secret, and settings, such as webhook headers. | Admin |
+| **Connections** | Create, edit, re-check, share, rotate, and delete shared connections. Share a tool server with the workspace. | Admin |
+| **Cold storage** | Connect, verify, turn on or off, replace, and delete cold storage destinations. | Admin |
+
+Without **Notification channels**, you still see each channel's name and type, and the Slack channel or Jira project it posts to.
+
+## Organization permissions
+
+Organization permissions come with the organization role. A custom role can't include them.
+
+| Task | Owner | User |
+| --- | :---: | :---: |
+| See the organization's profile, your workspaces, the member list, usage, credits, and the subscription | ✓ | ✓ |
+| Edit the organization's name and time zone | ✓ | |
+| Require multi-factor authentication, and set up single sign-on and its domains | ✓ | |
+| Create, rename, and delete workspaces | ✓ | |
+| Invite users, change their roles, and remove them. Create, edit, and delete custom roles. | ✓ | |
+| Change the plan, payment method, and billing details. Buy credits and change **Overage Control**. See invoices. | ✓ | |

@@ -8,7 +8,7 @@ sidebar:
 
 Variables hold configuration you set once and reuse across workflows, such as a channel id, a list of regions, or an API token. Open **Workflows → Variables** and click **Add variable**.
 
-Pick **Constant** or **Secret** when you create one. The kind decides how you reference the value, and how KloudMate stores and reads it:
+You need the **Developer** role to manage constants, and the **Admin** role to manage secrets. Pick **Constant** or **Secret** when you create one. The kind decides how you reference the value, and how KloudMate stores and reads it:
 
 |  | Constant | Secret |
 |---|---|---|
@@ -61,7 +61,7 @@ du -xh --max-depth=2 /var | sort -rh | head -{{ vars.report_top_n }}
 
 A secret never enters a workflow definition or run history. KloudMate substitutes it into the step's inputs at the last moment, after everything has been recorded, so run detail shows `secret: stripe_key` where the value would be. If a step's output comes back carrying the secret, KloudMate rewrites it to `••••` before the output is recorded or read downstream, and the step still succeeds.
 
-This keeps the value out of run history and exports, and away from someone looking over your shoulder. It doesn't protect against someone who can edit workflows, because they can send a secret to their own server with an HTTP step. A [connection](/platform/settings/connections/) has the same limit, which is why both need the **Developer** role.
+This keeps the value out of run history and exports, and away from someone looking over your shoulder. It doesn't protect against someone who can edit workflows, because they can send a secret to their own server with an HTTP step. A [connection](/platform/settings/connections/) has the same limit. Anyone with the **Developer** role can use a secret in a step without seeing its value.
 
 KloudMate doesn't mask values shorter than 8 characters in step output, so don't rely on the masking for a short secret.
 
@@ -77,7 +77,7 @@ KloudMate refuses to **Delete** a variable while any workflow still uses it, and
 
 ## Reveal a secret
 
-**Reveal value** shows the plaintext to whoever created the secret, or to an organization **Owner**. Other users with the **Developer** role can't reveal it, even though they can rotate or delete it. KloudMate records each reveal and who made it.
+**Reveal value** needs the **Admin** role, and it shows the plaintext only to whoever created the secret, or to an organization **Owner**. Other Admins can rotate or delete the secret, but can't reveal it.
 
 ## Missing variables
 

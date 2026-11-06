@@ -1,0 +1,46 @@
+---
+title: "What changed for existing users"
+description: "How the new workspace roles, custom roles, and plan limits change access for organizations that used KloudMate before."
+sidebar:
+  label: "What changed"
+  order: 4
+---
+
+If your organization used KloudMate before this release, Viewers can now do less, and some tasks moved between roles. Nobody who had the old Developer role loses access.
+
+## Roles
+
+- The role that was called **Developer** is now called **Admin**. Members who had it keep all of their access.
+- A new **Developer** role builds and runs monitoring. A Developer can't change workspace settings, turn on public links for dashboards, create or brand status pages, manage secret workflow variables, or rehydrate logs.
+- On a paid plan, Owners can create [custom roles](../custom-roles/), and start from a template.
+- Owners and Viewers keep their roles.
+
+## What a Viewer can no longer do
+
+- Assign issues, open Jira tickets, or start, change, or archive a war room.
+- Test or preview a draft alert rule, or ask for routing suggestions.
+- Test a synthetic monitor or an incident routing rule, or preview a draft on-call schedule.
+- Send a report to its recipients.
+- Use a workflow builder's test tools, or see a workflow's webhook or form URL.
+- Cancel a run of a workflow that doesn't allow runs by anyone in the workspace.
+- See the workspace settings pages.
+- Acknowledge or resolve an incident, or undo either, from Slack, Microsoft Teams, or a voice call.
+
+To give a Viewer some of these tasks back, give them the **Developer** role, or a [custom role](../custom-roles/) such as the **Responder** template.
+
+## Tasks that moved from Owners to Admins
+
+These tasks needed an Owner before. Now every Admin can do them, and a custom role can include them in one workspace:
+
+- Connect cloud accounts.
+- Set up cold storage destinations.
+- Set up a custom domain for a status page.
+
+## Other changes
+
+- An Admin can edit and revoke any ingest key in the workspace. Before, only the person who created a key could.
+- Only the author of a saved query can edit it. Before, any member could.
+- If your plan doesn't include a module or feature, it's closed for everyone, its data included, and its background work stops. See [Plan limits](../#plan-limits).
+- Any role with AI Assistant **Use** can create a private skill. Before, only an Admin could.
+- Only an Admin can see a notification channel's address, secret, and settings, such as a webhook's custom headers, or preview a webhook body. Everyone still sees each channel's name and type, and the Slack channel or Jira project it posts to.
+- Only Owners can see invoices. Every member can still see usage, credits, and the subscription.

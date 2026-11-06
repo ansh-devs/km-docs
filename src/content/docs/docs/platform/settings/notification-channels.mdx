@@ -87,7 +87,7 @@ Teams channels come from a team connected through the KloudMate app. Connect the
 
 ![image](./images/webhooks-1.png)
 
-KloudMate generates a secret for the channel and uses it to sign every request with an HMAC-SHA256 signature, so you can verify that a request came from KloudMate. With the **Developer** role, you can copy the secret from the channel list with **Copy Secret**.
+KloudMate generates a secret for the channel and uses it to sign every request with an HMAC-SHA256 signature, so you can verify that a request came from KloudMate. With the **Admin** role, you can copy the secret from the channel list with **Copy Secret**.
 
 A webhook channel also sends alerts to a [workflow](../../../workflows/). Set the channel's URL to the workflow's webhook URL, then add the channel to a routing rule. Each notification then starts a run, with the alert group payload as the request body. See [Triggers](../../../workflows/triggers/#start-a-workflow-from-an-alert).
 

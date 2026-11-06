@@ -50,6 +50,7 @@ Open the actions menu (⋮) for an agent to manage it:
 
 - **Configure:** Opens the agent's Configuration page, with tabs for **APM**, **Databases**, **Logs**, **Processes**, **Runbook Scripts**, and **Collector Config**. Updates apply automatically wherever the agent is installed.
 - **Restart agent:** Restart the agent when needed.
+- **Uninstall:** Uninstall the agent from its host.
 - **Delete:** Remove the agent from the **Agents & Pipelines** page and clear all of its configuration.
 
 :::caution
@@ -71,7 +72,7 @@ To undo a managed change, turn the toggle back. There is no separate history or 
 
 ### Runbook Scripts
 
-The **Runbook Scripts** tab decides whether a [workflow](../../workflows/) can run commands on this host with the [Run Command on Host](../../workflows/actions/#run-command-on-host) step. Scripts are off until someone with the **Developer** role turns on **Allow runbook scripts on this host**. The agent picks up the change within a minute. Only Linux host agents have this setting.
+The **Runbook Scripts** tab decides whether a [workflow](../../workflows/) can run commands on this host with the [Run Command on Host](../../workflows/actions/#run-command-on-host) step. Scripts are off until someone with the **Admin** role turns on **Allow runbook scripts on this host**. The agent picks up the change within a minute. Only Linux host agents have this setting.
 
 ![The Runbook Scripts tab with Allow runbook scripts on this host turned on](./images/agent-runbook-scripts-tab.png)
 
