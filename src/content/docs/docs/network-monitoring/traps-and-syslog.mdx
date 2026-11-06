@@ -6,7 +6,7 @@ sidebar:
   order: 5
 ---
 
-Polling tells you how a device is doing every minute or so. Traps and syslog tell you what happened in between: a link that flapped, a fan that failed, a configuration change, a login. Add a receiver on an agent, point your devices at it, and every event lands in [Logs](/logs/log-explorer/) and on the **Events** tab of the device that sent it.
+Polling tells you how a device is doing every minute or so. Traps and syslog tell you what happened in between: a link that flapped, a fan that failed, a configuration change, a login. Add a receiver on an agent and point your devices at it. Every event lands in [Logs](/logs/log-explorer/), and events from devices that the same agent polls over SNMP also appear on that device's **Events** tab.
 
 Receivers need a Linux or Docker KloudMate Agent on version 2.11.0 or later. Kubernetes agents can't run them.
 
