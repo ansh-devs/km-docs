@@ -84,7 +84,7 @@ To find out whether a host can run the agent without changing anything on it, ru
 curl -fsSL https://cdn.kloudmate.com/scripts/install_linux.sh | bash -s -- --check
 ```
 
-The check doesn't need an API key. It checks the OS, CPU architecture, kernel version, and systemd, then downloads the latest package to confirm that the host can reach the release server and that its `dpkg` or `rpm` can read the package. Each problem it finds is printed with its fix. If you can't fix one, send the output to support@kloudmate.com.
+The check doesn't need an API key. It checks the OS, CPU architecture, kernel version, and systemd, then downloads the latest package to confirm that the host can reach the release server and that its `dpkg` or `rpm` can read the package. Each problem it finds is printed with its fix. If you can't fix one, send the output to [support@kloudmate.com](mailto:support@kloudmate.com).
 
 The install command runs the same checks first, and stops before it changes anything on the host if one fails.
 
