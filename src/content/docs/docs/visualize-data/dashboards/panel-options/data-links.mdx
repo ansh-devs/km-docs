@@ -42,7 +42,7 @@ A link with the same title and URL appears once.
 | **Value numeric** (`${__value.numeric}`) | The raw number, before formatting. A tile that shows `0.13` links with `0.125`. |
 | **Value time** (`${__value.time}`) | The time of the value, in epoch milliseconds. On a Stats or Gauge tile, it's the time of the series' last point. In a table, it's the row's time, so it's empty when the table has no time column. |
 | **Dashboard variable:** `<label>` | `var-<name>=${<name>}`, the variable's current selection as a query parameter. Use it to open another dashboard with the same selection. See [Dashboard variables](../../dashboard-variables/). |
-| **Time range** (`${__time_range}`) | The dashboard's time range and time zone as query parameters. For example, `/logs?${__time_range}` becomes `/logs?timeRange=now-1h&tz=Asia%2FKolkata`. |
+| **Time range** (`${__time_range}`) | The dashboard's time range and time zone as query parameters. For example, with Last 1 hour, `/logs?${__time_range}` becomes `/logs?timeRange=1h&tz=Asia%2FKolkata`. A fixed start and end is written as milliseconds, `timeRange=<from>:<to>`. |
 | **From** (`${__from}`), **To** (`${__to}`) | The start and end of the dashboard's time range, in epoch milliseconds. |
 | **Workspace ID** (`${__workspace_id}`) | The ID of the current workspace. |
 
