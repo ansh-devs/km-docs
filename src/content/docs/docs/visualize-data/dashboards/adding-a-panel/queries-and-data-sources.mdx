@@ -88,10 +88,6 @@ A metric query aggregates in two steps. To set each one yourself, click **custom
 
 Click **collapse** to go back to a single list. A query that the single list can't show, such as **Max** within series and **Sum** across series on a gauge, always opens with both steps. See [Metrics Aggregations](../../../explore/metrics-aggregations/) for how the two steps work together.
 
-#### Keep each series apart
-
-Choose **Each series** under **Across series** to skip the across-series step and keep every series with all of its labels. For a counter, the single **Aggregate** list offers **Each series** too. Each series doesn't combine anything, so choosing it clears **Group by** and **Then**, and both stay off until you pick a different option. **Rank** still works, and ranks the series one by one.
-
 #### Single value
 
 When **Returns** is **Single value**, **Aggregate** is one statistic for the whole time range. **Count (series)** counts the series that match the query. If the query already uses **Where value** or **Then** when you switch it to **Single value**, the builder keeps them and shows **Within series** and **Across series** instead of a single statistic.
@@ -112,9 +108,11 @@ The condition is checked against each series' value at every time step, after **
 
 ### Group and rank the results
 
-**Group by** splits the result into one series for each distinct value of the fields you pick. Click **label** on a metric, or **field** on logs and traces, and pick one or more fields, such as `host_name` or `service_name`.
+**Group by** splits the result into one series for each distinct value of the fields you pick. Click **label** on a metric, or **field** on logs and traces, and pick one or more fields, such as `host_name` or `service_name`. With no field picked, every matching series is combined into one.
 
-**Rank** keeps K series: **Top K** keeps the highest values, **Bottom K** the lowest, and **Limit K** the first K returned. It appears once the query has a **Group by** or uses **Each series**.
+On a metric, the **Group by** list starts with **Each series**, which keeps every series apart with all of its labels and combines nothing. **Aggregate** then sets only the statistic within each series, and **Then** isn't available. Picking a label or removing **Each series** goes back to combining series.
+
+**Rank** keeps K series: **Top K** keeps the highest values, **Bottom K** the lowest, and **Limit K** the first K returned. It appears once **Group by** has a field or **Each series**, and ranks each series on its own with **Each series**.
 
 ### Combine groups a second time
 

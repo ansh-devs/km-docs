@@ -14,6 +14,13 @@ The last bucket, labeled `+Inf`, holds every value above the highest boundary. I
 
 ![Histogram panel settings](./images/histogram-panel-1.jpeg)
 
+## If the panel can't draw the query
+
+The panel says why in place of the bars:
+
+- **A histogram shows one distribution for the whole time range. Set Returns to Distribution.** The query returns a value per time step. Set **Returns** to **Distribution**, or use a [Heatmap panel](../heatmap-panel/) to see the buckets over time.
+- **This query returns one distribution per group.** A histogram draws one distribution. Remove the grouping, or use a Heatmap panel to put the groups side by side.
+
 ## Panel
 
 - **Name** is the title shown on the dashboard.
