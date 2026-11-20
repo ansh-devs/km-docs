@@ -16,6 +16,8 @@ You rarely edit this file by hand. The install command writes the required setti
 
 After you change `agent.yaml`, restart the agent for the change to take effect.
 
+For every environment variable the agent reads, including the ones with no `agent.yaml` key, see the [environment variable glossary](../environment-variables/).
+
 ## Example
 
 A minimal `agent.yaml` has the two settings the install command always writes:
@@ -48,7 +50,7 @@ Add any of the settings below on their own line to change the agent's behavior, 
 
 | Setting | Environment variable | Default | Description |
 |---|---|---|---|
-| `health-enabled` | `KM_HEALTH_ENABLED` | `false` | Send the agent's own health metrics (`kmagent.*`) directly to your workspace, without going through the collector. Off by default, and turned on automatically in autonomous mode. See [Agent health metrics](../../self-observability/health-metrics/). |
+| `health-enabled` | `KM_HEALTH_ENABLED` | `true` | Send the agent's own health metrics (`kmagent.*`) directly to your workspace, without going through the collector. On by default, and always on in autonomous mode. Set `false` to turn it off. See [Agent health metrics](../../self-observability/health-metrics/). |
 | `health-interval` | `KM_HEALTH_INTERVAL` | `60s` | How often the agent exports those health metrics. A Go duration such as `60s`. |
 | `agent-error-logs` | `KM_AGENT_ERROR_LOGS` | `true` | Send the agent's own `ERROR` logs to your workspace, so agent and collector startup failures show up without opening a shell on the host. On by default. Set `false` to turn it off. See [Agent self-logs](../../self-observability/self-logs/). |
 
@@ -58,7 +60,7 @@ Add any of the settings below on their own line to change the agent's behavior, 
 |---|---|---|---|
 | `auto-instrument` | `KM_AUTO_INSTRUMENT` | `false` | Autonomous mode. The agent discovers and instruments everything on the host: eBPF, applications, and containers. It restarts them as needed and stops polling the backend for configuration. Use it for immutable or autoscaled fleets you cannot manage one host at a time. See [Autonomous instrumentation](../../advanced-configuration/#autonomous-instrumentation) and [Auto-scaling group deployment](../../installation/aws-asg-deployment/). |
 | `docker-mode` | `KM_DOCKER_MODE` | `false` | Run the agent against a mounted host filesystem from inside a container. The [Docker install](../../installation/docker-agent/) sets this; you do not set it by hand for a host install. |
-| `docker-endpoint` | `KM_DOCKER_ENDPOINT` | Docker default socket | The Docker API endpoint the agent uses in Docker mode. |
+| `docker-endpoint` | `KM_DOCKER_ENDPOINT` | None | Has no effect. To point the agent at a different Docker daemon, set `DOCKER_HOST` and `KM_DOCKER_STATS_ENDPOINT`. See [Environment variables](../environment-variables/#monitor-docker-containers). |
 | `fargate-mode` | `KM_FARGATE_MODE` | `false` | Runs the agent as a slim ECS Fargate collector sidecar, with no host receivers, eBPF, or discovery. The [ECS tooling](../../installation/ecs-agent/) sets this; do not set it by hand. |
 
 ## Container monitoring

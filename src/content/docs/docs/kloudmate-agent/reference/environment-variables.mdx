@@ -1,0 +1,304 @@
+---
+title: "Environment variable glossary"
+description: "Every environment variable the KloudMate agent reads, what each one changes, and where to set it on Linux, Windows, Docker, and Kubernetes."
+sidebar:
+  label: "Environment variables"
+  order: 3.5
+---
+
+import { LinkCard, CardGrid } from '@astrojs/starlight/components';
+
+This page lists the environment variables the KloudMate agent reads, grouped by what you'd use them for. Most hosts need none of them. The install command writes your API key and endpoint, and you control everything else from KloudMate. Set these when you run the agent without the dashboard, limit what it instruments, cap its CPU or memory, or turn a feature off on one host.
+
+## Set an environment variable
+
+The agent reads its environment when it starts, so restart it after every change.
+
+On **Linux**, add one `NAME=value` line per variable to `/etc/kmagent/kmagent.env`, the environment file the `kmagent` service reads. The file is kept across agent upgrades.
+
+```bash
+echo 'KM_EBPF_OPEN_PORTS=8080' | sudo tee -a /etc/kmagent/kmagent.env
+sudo systemctl restart kmagent
+```
+
+On **Windows**, set them on the `kmagent` service in PowerShell, as an administrator. `-Force` replaces the variables already on the service, so list every one you want in `-Value`. Installing or upgrading the agent recreates the service and removes them, so run the command again afterward.
+
+```powershell
+New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\kmagent' -Name Environment -PropertyType MultiString -Value @('KM_LOG_LEVEL=debug') -Force
+Restart-Service kmagent
+```
+
+On **Docker**, pass each one with `-e` on the `docker run` command. Docker can't add a variable to a container that already exists, so recreate the container to change one.
+
+On **Kubernetes**, set the matching [Helm value](#kubernetes-helm-values). The chart writes these variables into the agent pods.
+
+Many settings also have a key in `agent.yaml`, shown in the tables below. When you set the same option more than one way, the command-line flag wins, then the environment variable, then `agent.yaml`. See the [configuration reference](../agent-config/).
+
+The Linux install script also accepts `KM_API_KEY`, `KM_COLLECTOR_ENDPOINT`, `KM_UPDATE_ENDPOINT`, `KM_HOST_NAME`, `KM_AUTO_INSTRUMENT`, `KM_DOCKER_RUNTIME_SHIM`, and `KM_REDACT_KEY`, and writes them to `agent.yaml` on a fresh install. Put anything else in `kmagent.env`.
+
+### Values
+
+- **Switches.** A setting with an `agent.yaml` key accepts `true` or `false`, and a value the agent can't read, such as `yes`, stops it from starting. For a variable with no key, use the exact lowercase value in its description: most of them ignore `True` or `1`.
+- **Empty values.** A variable that's set to nothing still counts. `KM_HEALTH_ENABLED=` with nothing after the `=` turns health metrics off. Delete the line instead.
+- **Durations.** Use Go durations such as `30s` or `5m`, greater than zero. Only `KM_CONFIG_CHECK_INTERVAL` also takes a plain number of seconds.
+
+## Connect the agent to KloudMate
+
+| Variable | `agent.yaml` key | Default | What it does |
+|---|---|---|---|
+| `KM_API_KEY` | `api-key` | Required | Your workspace API key. It authenticates everything the agent sends. A key that carries a region tag sends the agent to that region's hosts. |
+| `KM_COLLECTOR_ENDPOINT` | `collector-endpoint` | `https://otel.kloudmate.com:4318`, or your region's host | Where the agent sends telemetry. The agent derives its other hosts from it, so `https://otel.kloudmate.dev:4318` also sends check-ins to `api.kloudmate.dev`. Set it to send to another region or through a proxy. |
+| `KM_UPDATE_ENDPOINT` | `update-endpoint` | Derived from `KM_COLLECTOR_ENDPOINT` | The URL the agent checks in with for configuration, APM selections, jobs, and upgrades. Set it only when check-ins go through a different proxy than telemetry. |
+| `KM_HOST_NAME` | `host-name` | OS hostname | The name the host registers under, also written to `host.name` on everything it sends. Set a unique value when cloned machines share an OS hostname, so they don't merge into one host. |
+| `KM_AGENT_TAGS` | `tags` | None | Up to 20 tags as `key=value,key=value`, for example `env=prod,team=checkout`. [Agent groups](../../pipeline-rules/agent-groups/) select agents by them. An invalid tag stops the agent from starting. |
+| `KM_CONFIG_CHECK_INTERVAL` | `config-check-interval` | `60s` | How often the agent checks in. `0` turns check-ins off, so nothing you change in KloudMate reaches the host. |
+
+## Choose how the agent is managed
+
+| Variable | `agent.yaml` key | Default | What it does |
+|---|---|---|---|
+| `KM_AUTO_INSTRUMENT` | `auto-instrument` | `false` | Autonomous mode. The agent instruments every app it finds, restarting each SDK app once, and stops checking in, so nothing from KloudMate applies. Use it on Auto Scaling groups and baked images. See [AWS Auto Scaling & Elastic Beanstalk](../../installation/aws-asg-deployment/). |
+| `KM_APM_CONTROL_PLANE` | None | On | `false` stops the agent from listing apps in KloudMate and from instrumenting them. It still checks in for configuration. Use it on a host where APM must never touch running apps. |
+
+## Choose which apps get APM
+
+In managed mode you pick apps in KloudMate, and a selection made there overrides these variables. They decide what's instrumented in autonomous mode, or on an agent with `KM_APM_CONTROL_PLANE=false`.
+
+| Variable | `agent.yaml` key | Default | What it does |
+|---|---|---|---|
+| `KM_INSTRUMENT_SELECTION` | None | None | Path to a YAML file that lists the apps to instrument by `service_id`. Only those apps get the SDK. The agent reads the file again every minute, so edits apply without a restart. For the format, see [Instrument only some apps](../../installation/aws-asg-deployment/#instrument-only-some-apps). |
+| `KM_INSTRUMENT_ALL` | None | Off | `true` gives every app the agent can instrument the SDK, and traces the rest with eBPF. It doesn't restart apps: each one picks up the SDK the next time it starts. A selection file overrides it. |
+| `KM_INSTRUMENT_SAMPLING` | None | `1.0` | Default trace sampling ratio for SDK-instrumented apps. `0.25` keeps a quarter of traces. A per-app `sampling` value overrides it, and a head-sampling [pipeline rule](../../pipeline-rules/rule-types/#sample) replaces it. |
+| `KM_INSTRUMENT_INTERVAL` | None | `60s` | How often the agent applies the selection to running apps. |
+| `KM_INSTRUMENT_ENABLED` | None | Off | `true` runs instrumentation on an agent that isn't managed from KloudMate, for example one with `KM_APM_CONTROL_PLANE=false`. It instruments nothing until a selection file or `KM_INSTRUMENT_ALL` says what to. |
+| `KM_INSTRUMENT_ENVFILE` | None | Off | Linux only. `true` writes an app's instrumentation settings to an environment file that systemd loads last, so they win over the unit's own `EnvironmentFile=`. Set it when the agent reports that a unit overrides `JAVA_TOOL_OPTIONS` or `NODE_OPTIONS`. |
+| `KM_VENDOR_TAKEOVER` | `vendor-takeover` | Unset | Whether the agent replaces another vendor's APM agent in an app it instruments. `true` always does, including in autonomous mode. `false` never does, and the app is traced with eBPF instead. Unset, it replaces one only in apps you turn on in KloudMate. |
+| `KM_DISCOVERY_ENABLED` | None | On for managed agents | `true` turns on app discovery for an agent that isn't managed from KloudMate. |
+| `KM_DISCOVERY_INTERVAL` | None | `60s` | How often the agent scans the host for apps. A shorter interval shows new apps sooner and uses more CPU. |
+
+## Tune eBPF monitoring
+
+| Variable | `agent.yaml` key | Default | What it does |
+|---|---|---|---|
+| `KM_EBPF_ENABLED` | `ebpf-apm` | `true` | eBPF application tracing. `false` turns it off, even in autonomous mode, and leaves the network map running. `true` doesn't trace anything on its own: eBPF traces the apps you select. |
+| `KM_EBPF_NETWORK_ENABLED` | `ebpf-network` | `true` | The eBPF network map. `false` turns it off. See [eBPF network topology](../../ebpf-network-topology/). |
+| `KM_EBPF_OPEN_PORTS` | None | Unset | Traces every process listening on these ports, for example `80,443,8000-8999`, in place of per-app targeting. Use it to limit tracing to one app's port, or to trace an app the agent can't target on its own. |
+| `KM_EBPF_SERVICE_NAME` | None | Process name | The service name for traffic on the `KM_EBPF_OPEN_PORTS` ports. Use it for an app behind a reverse proxy, which eBPF would otherwise name after the proxy. Ignored without `KM_EBPF_OPEN_PORTS`. |
+| `KM_EBPF_PROFILE` | None | `minimal` on 1 vCPU, `reduced` on 2, `full` on 3 or more | How much eBPF captures. `minimal` uses smaller request buffers and less CPU and memory, for small hosts. `full` captures the most. |
+| `KM_EBPF_LOG_CORRELATION` | `ebpf-log-correlation` | `true` | Adds `trace_id` and `span_id` to the stdout and stderr lines of eBPF-traced containers and PM2 apps. `false` stops the agent from changing log lines. |
+| `KM_EBPF_NETWORK_CIDRS` | None | Unset | Comma-separated CIDRs that label network flows. List your hosts as `/32` addresses plus `0.0.0.0/0` to see host-to-host traffic on the network map. |
+| `KM_EBPF_INSTRUMENT_DATABASES` | None | `false` | `true` stops excluding database servers from eBPF tracing, so a port selector such as `KM_EBPF_OPEN_PORTS` can trace them. |
+| `KM_EBPF_APM_ENABLED` | None | `false` | Kubernetes only. `true` traces every listening process on every node and ignores per-workload selections. There's no Helm value for it. |
+
+## Monitor Docker containers
+
+These settings apply to the Linux host agent on a machine with Docker or Podman. The agent running in Docker mode ignores the `KM_DOCKER_*` settings in the first table: its container metrics and logs are always on.
+
+| Variable | Default | What it does |
+|---|---|---|
+| `KM_DOCKER_STATS` | `true` | Per-container CPU, memory, network, and disk metrics. `false` turns them off. |
+| `KM_DOCKER_LOGS` | `true` | Container stdout and stderr. `false` turns them off. |
+| `KM_DOCKER_LOGS_PATH` | `<data-root>/containers/*/*-json.log` | The container log files to tail. Set it when the agent can't find Docker's data-root, or to tail fewer containers. Only the `json-file` log driver is read. |
+| `KM_DOCKER_STATS_ENDPOINT` | The first of `/var/run/docker.sock`, `/run/docker.sock`, and `/run/podman/podman.sock` that exists | The daemon to read container metrics from, as `unix:///path` or `tcp://host:port`. For Podman or a non-default socket, set it together with `DOCKER_HOST`. |
+| `KM_DOCKER_STATS_INTERVAL` | `60s` | How often container metrics are collected. |
+| `DOCKER_HOST` | `unix:///var/run/docker.sock` | The standard Docker variable. The agent uses it for everything else that talks to Docker: container names, SDK injection, and upgrades. |
+
+### Instrument containers
+
+| Variable | Default | What it does |
+|---|---|---|
+| `KM_CONTAINER_INSTRUMENT_ENABLED` | On wherever the agent can reach Docker | Container SDK instrumentation. `false` leaves containers to eBPF. On a host agent, `true` also turns on PHP containers. See [Docker platform notes](../../platform-notes/docker/). |
+| `KM_CONTAINER_SDK_RECREATE` | `true` | `false` stops the agent from recreating containers to add the SDK. KloudMate then shows a `docker run` or Compose snippet for you to apply. |
+| `KM_CONTAINER_OTLP_URL` | The container network's gateway on port `4318` | Where SDK-instrumented containers send telemetry. Set it when containers can't reach the agent through their network's gateway. |
+| `KM_CONTAINER_INSTRUMENT_INTERVAL` | `30s` | How often the agent applies container selections. |
+| `KM_DOCKER_RUNTIME_SHIM` | `false` | `agent.yaml` key `runtime-shim`. `true` at install time installs the runtime shim, which adds the SDK when a container is created, so the agent doesn't recreate it. A setting from KloudMate overrides it. |
+
+### Instrument PHP containers
+
+PHP containers are traced with dd-trace and need container instrumentation on. These variables pick PHP containers without the per-container selection in KloudMate.
+
+| Variable | Default | What it does |
+|---|---|---|
+| `KM_CONTAINER_INSTRUMENT_ALL` | Off | `true` instruments every PHP container. |
+| `KM_CONTAINER_INSTRUMENT_NAMES` | None | Comma-separated container names to instrument. |
+| `KM_CONTAINER_INSTRUMENT_IMAGES` | None | Comma-separated image names. A container whose image name contains one of them is instrumented. |
+| `KM_CONTAINER_COLLECTOR_URL` | The container network's gateway on port `8126` | Where PHP containers send traces, for example `http://host.docker.internal:8126`. Set it when the gateway doesn't reach the agent. |
+| `KM_CONTAINER_COLLECTOR_PORT` | `8126` | The port PHP containers send to, when something between them and the agent remaps it. The agent still listens on `8126`. |
+| `KM_PHP_DDTRACE_RECEIVER` | On with PHP container instrumentation | `true` opens the trace receiver on port `8126` for a PHP app on the host that uses dd-trace. `false` keeps the port free for a Datadog agent. |
+
+## Collect logs
+
+| Variable | Default | What it does |
+|---|---|---|
+| `KM_LOG_SOURCES_DIR` | `/etc/kmagent/logs.d`, or `C:\ProgramData\kmagent\logs.d` on Windows | The directory of log-source files the agent reads at startup. A source from KloudMate with the same name wins. For the file format, see [Configure log collection](../../installation/aws-asg-deployment/#configure-log-collection). |
+
+Container logs are covered under [Monitor Docker containers](#monitor-docker-containers).
+
+## Monitor processes
+
+Linux hosts only. A process-monitoring setting from KloudMate replaces all of these. See [Process monitoring](../../process-monitoring/).
+
+| Variable | `agent.yaml` key | Default | What it does |
+|---|---|---|---|
+| `KM_PROCESS_MONITOR` | `process-monitor` | `false` | CPU and memory metrics for each discovered service and the heaviest other processes. |
+| `KM_PROCESS_MONITOR_TOPN` | `process-monitor-topn` | `5` | Also monitor the N heaviest other executables by CPU and by memory, to catch a runaway process. `0` monitors discovered services only. |
+| `KM_PROCESS_MONITOR_INCLUDE` | `process-monitor-include` | None | Executable names or globs to always monitor, for example `backup-*,ffmpeg`. |
+| `KM_PROCESS_MONITOR_EXCLUDE` | `process-monitor-exclude` | None | Executable names or globs to never monitor. |
+| `KM_PROCESS_MONITOR_MAX` | `process-monitor-max` | `25` | The most processes the agent monitors at once. |
+
+## Monitor databases from a file
+
+In managed mode you add databases in KloudMate, and a selection made there wins over these variables. Use them to monitor databases without the dashboard.
+
+| Variable | Default | What it does |
+|---|---|---|
+| `KM_DBMONITOR_ENABLED` | `false` | `true` turns on database monitoring from the `KM_DBMONITOR_SELECTION` file. |
+| `KM_DBMONITOR_SELECTION` | None | Path to a YAML or JSON file of the databases to monitor. Check it with `kmagent dbprofiles --validate <path>`, and list the engines and profiles with `kmagent dbprofiles --catalog`. |
+| `KM_DBMONITOR_SECRETS` | None | Path to a file of `name: password` pairs for the selection file, so passwords stay out of it. Make it readable by root only. |
+| `KM_SECRET_<name>` | None | A database password that a configuration from KloudMate refers to by name. See [Database credentials](../../database-monitoring/credentials/). |
+
+## Limit CPU and memory
+
+On Linux, Windows, and Docker, the agent sizes these for the host when they're unset. On Kubernetes it doesn't, and the pod's limits apply.
+
+| Variable | Default | What it does |
+|---|---|---|
+| `GOMEMLIMIT` | 15% of the host's memory, between 512 MiB and 2 GiB (35% on hosts under 2 GiB), and at most 60% of a memory limit | The agent's memory budget, such as `1GiB`. The collector refuses new data above 1.25 times the budget, and the agent restarts itself above 1.5 times. |
+| `GOMAXPROCS` | `4` on hosts with more than 4 CPUs, otherwise the CPU count | The number of threads that run the agent's code. The agent's CPU limit is derived from it. Under a CPU quota, set it to the number of cores you allow. |
+| `GOGC` | `50` | How often memory is collected. A higher value, such as `100`, uses less CPU and more memory. |
+| `KM_WATCHER` | On | `off` turns off the agent's memory and CPU checks. The budget still applies to garbage collection. |
+| `KM_WATCHER_EXIT` | Exit over the limit | `false` keeps the agent running above 1.5 times the budget. It still writes a heap profile and turns eBPF off, then restarts the collector instead of exiting. Use it where nothing restarts the agent. |
+| `KM_MEM_SCAVENGE_INTERVAL` | `3m` | How often the agent returns freed memory to the operating system. `off` stops it and saves a little CPU. |
+| `KM_STORAGE_DIR` | `/var/lib/kmagent/storage`, or `C:\ProgramData\kmagent\storage` on Windows | The on-disk export queue that holds data through restarts and network outages, up to 512 MiB per exporter. Move it to a disk with more space. |
+
+## See the agent's logs and health
+
+| Variable | `agent.yaml` key | Default | What it does |
+|---|---|---|---|
+| `KM_LOG_LEVEL` | `log-level` | `info` | The agent's own log level: `debug`, `info`, `warn`, or `error`. |
+| `KM_COLLECTOR_LOG_LEVEL` | None | `warn` | The built-in collector's log level, for example `debug` to troubleshoot a receiver. It fills in the level only when the collector configuration has none, so on an existing install it takes effect after the next configuration change from KloudMate. |
+| `KM_HEALTH_ENABLED` | `health-enabled` | `true` | Sends the agent's health metrics (`kmagent.*`) straight to KloudMate, so a stopped collector still shows up. See [Agent health metrics](../../self-observability/health-metrics/). |
+| `KM_HEALTH_INTERVAL` | `health-interval` | `60s` | How often health metrics are sent. |
+| `KM_AGENT_ERROR_LOGS` | `agent-error-logs` | `true` | Sends the agent's own error logs to KloudMate. `false` turns it off. See [Agent self-logs](../../self-observability/self-logs/). |
+
+## Mask sensitive data
+
+| Variable | `agent.yaml` key | Default | What it does |
+|---|---|---|---|
+| `KM_REDACT_KEY` | `redact-key` | None | Your key for [mask rules](../../pipeline-rules/rule-types/#mask) that hash values. The same value always hashes to the same token, so masked data still correlates. Without a key, those rules redact the whole value. The key never leaves the host. |
+
+## Control upgrades
+
+| Variable | `agent.yaml` key | Default | What it does |
+|---|---|---|---|
+| `KM_ALLOW_REMOTE_UPGRADE` | `allow-remote-upgrade` | `true` | `false` refuses every upgrade started from KloudMate. See [Upgrade the agent](../../upgrade/). |
+
+## Run runbook scripts
+
+Leave these unset on an ordinary install. See [Runbook scripts](../agent-config/#runbook-scripts) for how the host and workspace settings combine.
+
+| Variable | `agent.yaml` key | Default | What it does |
+|---|---|---|---|
+| `KM_JOB_TYPES` | `job-types` | Empty, so the workspace setting decides | The job types this host accepts, such as `run_script`, or `none` to refuse every job. |
+| `KM_JOB_SIGNING_KEYS` | `job-signing-keys` | The keys KloudMate publishes | Ed25519 public keys that jobs and remote upgrades must be signed with. When you set it, only these keys are trusted. |
+| `KM_JOB_AGENT_ID` | `job-agent-id` | Empty | Refuses jobs addressed to a different agent ID. |
+
+## Run a synthetic monitoring location
+
+These turn a host into a private location that runs your workspace's synthetic checks from its own network.
+
+| Variable | `agent.yaml` key | Default | What it does |
+|---|---|---|---|
+| `KM_SYNTHETIC_WORKER` | `synthetic-worker` | `false` | `true` runs the checks assigned to this host's location. Browser checks aren't supported. |
+| `KM_SYNTHETIC_WORKER_LOCATION` | `synthetic-worker-location` | Required with the worker | The private location this host serves, as it's named in the workspace. |
+| `KM_SYNTHETIC_WORKER_KEY` | `synthetic-worker-key` | The API key | The key the worker authenticates with. It must be an `sk_` key for the location to reach internal addresses. |
+| `KM_SYNTHETIC_WORKER_ALLOW_INTERNAL` | `synthetic-worker-allow-internal` | `true` | `false` limits checks to public addresses. |
+| `KM_SYNTHETIC_WORKER_CONCURRENCY` | `synthetic-worker-concurrency` | `10` | How many checks run at once, up to `100`. |
+| `KM_SYNTHETIC_WORKER_ENDPOINT` | `synthetic-worker-endpoint` | Derived from `KM_COLLECTOR_ENDPOINT` | The synthetics control plane URL. Set it only for a proxy. |
+
+## Kubernetes: Helm values
+
+On Kubernetes, set these through the Helm chart. See [Kubernetes installation](../../installation/kubernetes-agent/).
+
+| Helm value | Variable | What it does |
+|---|---|---|
+| `clusterName` | `KM_CLUSTER_NAME` | The cluster's name in KloudMate and `k8s.cluster.name` on its telemetry. Changing it registers a new cluster. |
+| `monitoredNamespaces` | `KM_K8S_MONITORED_NAMESPACES` | The namespaces to discover workloads in. Empty means all of them. |
+| `excludedNamespaces` | `KM_K8S_EXCLUDED_NAMESPACES` | Namespaces to skip when all are monitored. System namespaces are always skipped. |
+| `featuresEnabled.apm` | `KM_APM_ENABLED`, `KM_DISCOVERY_ENABLED` | Workload discovery and APM. |
+| `featuresEnabled.logs` | `KM_LOGS_ENABLED` | Pod log collection. |
+| `featuresEnabled.networkFlows` | `KM_EBPF_NETWORK_ENABLED` | The eBPF network map. |
+| `featuresEnabled.logTraceCorrelation` | `KM_EBPF_LOG_CORRELATION` | Trace IDs in pod logs. |
+| `featuresEnabled.agentErrorLogs` | `KM_AGENT_ERROR_LOGS` | The agent's own error logs. |
+| `agentTags` | `KM_AGENT_TAGS` | Tags that [agent groups](../../pipeline-rules/agent-groups/) select by. |
+| `redact.existingSecret` | `KM_REDACT_KEY` | A Secret that holds your redaction key. |
+| `gateway.enabled` | `KM_GATEWAY_ENDPOINT` | Runs a gateway and routes traces through it. Tail-sampling rules need it. |
+| `selfUpdate.enabled` | `KM_SELF_UPDATE_ENABLED` | Upgrades started from KloudMate. |
+| `patchExternallyManagedWorkloads` | `KM_K8S_APM_PATCH_MANAGED` | Lets APM annotate workloads that Argo CD or Flux own. Turn it on only after the GitOps tool ignores the annotation, or every sync reverts it and restarts the pods. |
+
+The chart also sets these variables to connect its own components. Leave them as the chart sets them: `KM_NAMESPACE`, `KM_DAEMONSET_NAME`, `KM_DEPLOYMENT_NAME`, `KM_CRD_NAME`, `KM_CONFIG_UPDATER_NAME`, `KM_UPDATER_IMAGE`, `KM_UPDATER_SERVICE_ACCOUNT`, `KM_DISCOVERY_DB_PATH`, `KM_DISCOVERY_LISTEN_ADDR`, `KM_DISCOVERY_UPDATER_URL`, `CONFIGMAP_NAME`, `CONFIGMAP_DAEMONSET_NAME`, `CONFIGMAP_DEPLOYMENT_NAME`, `CONFIGMAP_GATEWAY_NAME`, `DEPLOYMENT_MODE`, `NODE_NAME`, `POD_NAME`, and `POD_NAMESPACE`.
+
+## Set by the installer
+
+The install method sets these. You don't set them on a host.
+
+| Variable | Set by | What it does |
+|---|---|---|
+| `KM_AGENT_CONFIG` | The service definition | The path of `agent.yaml`. |
+| `KM_COLLECTOR_CONFIG` | The service definition | The path of the collector configuration the agent loads and updates. |
+| `KM_DOCKER_MODE` | The Docker image | Runs the agent against the host's filesystem from inside a container. |
+| `KM_FARGATE_MODE` | The [ECS tooling](../../installation/ecs-agent/) | Runs the agent as a slim ECS Fargate sidecar. |
+| `KM_DOCKER_SHARE_DIR` | The Docker install script, on snap Docker | The host directory the agent shares with app containers for the SDK, `/var/lib/kmagent/docker` by default. |
+
+## Paths and test settings
+
+Leave these unset. They move the agent's state files or exist for testing.
+
+| Variable | Default | What it holds |
+|---|---|---|
+| `KM_STATUS_PATH` | `/var/lib/kmagent/status.json` | The status that `kmagent status` reads and upgrades check. |
+| `KM_JOB_STATE_PATH` | `/var/lib/kmagent/jobs.json` | The record of jobs already run. Its directory also holds upgrade downloads. |
+| `KM_SERVICE_IDS_PATH` | `/var/lib/kmagent/service-ids.json` | The stable `service_id` of each discovered app. Losing it can change the IDs a selection refers to. |
+| `KM_VM_APM_STATE_PATH` | `/var/lib/kmagent/vm-apm.json` | The last APM selection from KloudMate, applied at startup before the first check-in. |
+| `KM_EBPF_QUARANTINE_PATH` | `/var/lib/kmagent/ebpf-quarantine.json` | Why and when the agent turned eBPF off. `kmagent ebpf reset` clears it. |
+| `KM_PII_CATALOG_PATH` | `/var/lib/kmagent/shapes.db` | The catalog the PII detector uses. |
+| `KM_AGENTS_DIR` | `/opt/kmagent/agents` | The bundled language SDKs. |
+| `KM_DOTNET_LOG_DIR` | `C:\ProgramData\kmagent\dotnet-logs` | Windows .NET instrumentation logs, which the agent reads to confirm the SDK loaded. |
+| `KM_PROC_DIR`, `HOST_PROC` | `/proc` | The process filesystem the agent reads. |
+| `KM_APPHOST_CONFIG` | `%windir%\System32\inetsrv\config\applicationHost.config` | The IIS configuration that discovery reads. |
+| `KM_RELEASE_BASE_URL` | KloudMate's release CDN | Where upgrades are downloaded from. Releases must still carry KloudMate's signature. |
+| `KM_DOCKER_IMAGE_REPO` | `ghcr.io/kloudmate/km-agent` | The image that Docker upgrades pull. |
+| `KM_PREQUEUE_BATCH` | On | `off` removes the one-second batch in front of the export queue. |
+
+On Windows, the state files live under `C:\ProgramData\kmagent\` instead of `/var/lib/kmagent/`.
+
+## Read from the platform
+
+The agent reads these from its own environment to work out where it runs. You don't set them.
+
+| Variable | What the agent learns |
+|---|---|
+| `KUBERNETES_SERVICE_HOST` | It runs on Kubernetes, and on AWS, Google Cloud, or Azure, which managed service. |
+| `AWS_LAMBDA_FUNCTION_NAME`, `AWS_LAMBDA_FUNCTION_VERSION`, `AWS_REGION` | It runs on AWS Lambda, and in which region. |
+| `K_SERVICE`, `K_REVISION` | It runs on Google Cloud Run. |
+| `FUNCTION_NAME`, `FUNCTION_TARGET` | It runs on Google Cloud Functions. |
+| `GAE_SERVICE` | It runs on Google App Engine. |
+| `OPENSHIFT_BUILD_NAME`, `OPENSHIFT_BUILD_NAMESPACE` | It runs on OpenShift, so it adds OpenShift attributes to its telemetry. |
+| `CONSUL_HTTP_ADDR` | A Consul agent is available, so it adds the Consul node's attributes to its telemetry. |
+| `XDG_RUNTIME_DIR` | Where to look for a rootless Podman socket. |
+
+## Legacy names
+
+| Variable | Use instead |
+|---|---|
+| `KM_VM_CONTROL_PLANE` | `KM_APM_CONTROL_PLANE`. The old name is read only when the new one is unset. |
+| `KM_DOCKER_ENDPOINT` | `DOCKER_HOST` and `KM_DOCKER_STATS_ENDPOINT`. `KM_DOCKER_ENDPOINT` and its `docker-endpoint` key have no effect. |
+
+## Related
+
+<CardGrid>
+  <LinkCard title="Configuration reference" href="../agent-config/" description="Every agent.yaml setting and its default." />
+  <LinkCard title="AWS Auto Scaling & Elastic Beanstalk" href="../../installation/aws-asg-deployment/" description="Run the agent without the dashboard on autoscaled fleets." />
+  <LinkCard title="eBPF observability" href="../../ebpf-observability/" description="What eBPF monitoring collects and how to tune it." />
+  <LinkCard title="Glossary" href="../glossary/" description="The terms used across the agent docs." />
+</CardGrid>
