@@ -206,6 +206,10 @@ To find an app's ID, run `sudo kmagent discover` on one instance and read the `s
 
 An empty list, `services: []`, gives no app the SDK. Use it when you want eBPF only.
 
+:::caution
+If the file is missing or isn't valid YAML, no app gets the SDK, and the agent logs `failed to load selection` every minute. Run `sudo journalctl -u kmagent | grep -i selection` on a new instance to confirm the file loaded.
+:::
+
 ### Limit eBPF to the app's port
 
 In autonomous mode, eBPF traces every app whatever the selection file says. Set `KM_EBPF_OPEN_PORTS` to your app's port to trace only that app, or set `KM_EBPF_ENABLED=false` to turn eBPF tracing off and keep the SDK as the only source of traces.
