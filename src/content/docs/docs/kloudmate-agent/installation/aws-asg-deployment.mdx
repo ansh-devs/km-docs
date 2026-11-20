@@ -179,6 +179,71 @@ eBPF names a service after the process it instruments. On the Beanstalk web tier
 If you add the OpenTelemetry SDK to an app on the web tier, set `KM_EBPF_ENABLED=false` for it. The SDK traces the app, and eBPF traces the nginx front end — two different processes — so without this the app is traced twice. (The agent drops eBPF automatically when it finds an SDK on the *same* process, which doesn't happen behind a reverse proxy.)
 :::
 
+## Instrument only some apps
+
+Autonomous mode instruments every app it finds on the instance. To instrument only one app, or a few, you control two things separately: which apps get the OpenTelemetry SDK, and which ports eBPF traces.
+
+### Choose the apps that get the SDK
+
+List the apps in a selection file and point `KM_INSTRUMENT_SELECTION` at it. Only the apps in the file get the SDK. Every other app keeps running untouched, with no SDK and no restart.
+
+```yaml
+# /etc/kmagent/instrument.yaml
+services:
+  - service_id: systemd:checkout.service
+    service_name: checkout
+    restart: true
+```
+
+| Field | Required | Notes |
+|---|---|---|
+| `service_id` | Yes | The app's ID, as `kmagent discover` reports it. |
+| `service_name` | No | The `service.name` its traces report under. |
+| `restart` | No | `true` lets the agent restart the app once so it loads the SDK. Without it, the app picks up the SDK the next time it starts. |
+| `sampling` | No | Trace sampling ratio for this app, for example `"0.25"`. Default: `"1.0"`. |
+
+To find an app's ID, run `sudo kmagent discover` on one instance and read the `service_id` of the app in the JSON it prints. A systemd service is `systemd:<unit name>` and a PM2 app is `pm2:<app name>`, so the ID is the same on every instance built from your launch template. An app started any other way gets an ID hashed from its executable, command line, and listening ports (`proc:...`). That ID matches across instances only when all three are identical.
+
+An empty list, `services: []`, gives no app the SDK. Use it when you want eBPF only.
+
+### Limit eBPF to the app's port
+
+In autonomous mode, eBPF traces every app whatever the selection file says. Set `KM_EBPF_OPEN_PORTS` to your app's port to trace only that app, or set `KM_EBPF_ENABLED=false` to turn eBPF tracing off and keep the SDK as the only source of traces.
+
+### Example: one app
+
+Both examples go in the user-data before the install line, so the agent's first start reads them. Put every variable in the same `kmagent.env`. Each example replaces the file.
+
+The SDK on one Java, .NET, Node.js, Python, or PHP app. The app restarts once and gets in-process traces, including its database calls and outgoing requests:
+
+```bash
+install -d -m 755 /etc/kmagent
+cat > /etc/kmagent/instrument.yaml <<'EOF'
+services:
+  - service_id: systemd:checkout.service
+    service_name: checkout
+    restart: true
+EOF
+cat > /etc/kmagent/kmagent.env <<'EOF'
+KM_INSTRUMENT_SELECTION=/etc/kmagent/instrument.yaml
+KM_EBPF_ENABLED=false
+EOF
+```
+
+eBPF on one app in any language, with no restart. You get HTTP spans and RED metrics for the app on port `8080`:
+
+```bash
+install -d -m 755 /etc/kmagent
+echo 'services: []' > /etc/kmagent/instrument.yaml
+cat > /etc/kmagent/kmagent.env <<'EOF'
+KM_INSTRUMENT_SELECTION=/etc/kmagent/instrument.yaml
+KM_EBPF_OPEN_PORTS=8080
+KM_EBPF_SERVICE_NAME=checkout
+EOF
+```
+
+`KM_EBPF_ENABLED` turns off eBPF tracing only. The network map has its own switch, `KM_EBPF_NETWORK_ENABLED`, and stays on. For every variable the agent reads, see [Environment variables](../../reference/environment-variables/).
+
 ## Verify
 
 On any instance:
@@ -194,7 +259,7 @@ If an instance isn't reporting, check the agent's own error logs. It ships them 
 
 ## Notes and limits
 
-- **One restart on first boot.** Auto-instrument restarts each app once to inject the SDK. That applies to the SDK languages, not to eBPF monitoring. To skip the restart at boot, bake the agent into your AMI so the instrumentation is already configured when the instance starts.
+- **One restart on first boot.** Auto-instrument restarts each app once to inject the SDK. That applies to the SDK languages, not to eBPF monitoring. With a [selection file](#instrument-only-some-apps), only the apps listed with `restart: true` restart. To skip the restart at boot, bake the agent into your AMI so the instrumentation is already configured when the instance starts.
 - **Configuration is fixed per instance.** In autonomous mode the agent doesn't take configuration from the KloudMate UI. You change what's instrumented, or your log sources, by updating the launch template or the `.platform` hook and redeploying. The agent still reports its health to KloudMate.
 - **Databases aren't auto-instrumented.** They need credentials, which can't be configured automatically, so monitor RDS or a separate database tier through [database monitoring](../../database-monitoring/overview/).
 - **Log sources are read at startup.** The agent reads `logs.d` once, when it starts. Instances that are replaced rather than reconfigured don't need it re-read.
