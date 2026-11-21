@@ -38,11 +38,14 @@ Click **Add**, pick a tile label under **Rename**, and type the new label in **T
 
 ## Stat options
 
-- **Display Mode:** **Grid** lays the tiles out in a grid, **Stack** puts them in a single column, and **Inline** places them side by side in one row.
-- **Graph mode:** **None** shows the value alone. **Area** draws a small area chart of the series behind it.
-- **Text mode:** what each tile shows: **Auto**, **Value**, **Label**, or **Label & Value**.
-- **Color mode:** where the tile's color goes: **None**, **Value** (the number), or **Background** (the whole tile).
-- **Threshold range** appears when a threshold uses **Relative Percentage**. It sets what the percentage is measured against:
+- **Display Mode:** **Grid** lays the tiles out in a grid, **Stack** puts them in a single column, and **Inline** places them side by side in one row. **Cells** draws one small colored cell per series with no text, for a status grid of many hosts, pods, or devices. Hover a cell for its name and value, and click it for its data links. From the keyboard, Tab reaches the cells, the arrow keys move between them, and Enter opens a cell's links.
+- **Shape** (Cells only): **Square**, **Circle**, **Diamond**, or **Hexagon**. Hexagons pack as a honeycomb.
+- **Show summary** (Cells only) adds a line above the cells that counts them by their mapped text, such as **39 Running · 2 Pending**. It needs [value mappings](#value-mappings) that set text.
+- **Sort** sets the order tiles and cells are drawn in: **Value, lowest first**, **Value, highest first**, **Name**, or **None** (the query's order). Tiles with no value go last.
+- **Graph mode** (not with Cells): **None** shows the value alone. **Area** draws a small area chart of the series behind it.
+- **Text mode** (not with Cells): what each tile shows: **Auto**, **Value**, **Label**, or **Label & Value**.
+- **Color mode** (not with Cells): where the tile's color goes: **None**, **Value** (the number), or **Background** (the whole tile).
+- **Threshold range** appears when a threshold uses **Relative Percentage**, or when **Color scheme** is a color ramp. It sets the range the percentage or the ramp is measured against:
   - **Whole panel** (the default) runs from the smallest to the largest value of every series behind the panel's tiles, counting every point in the time range and each tile's value.
   - **Per query** does the same with the series of the tile's own query.
   - **The field's own range** uses the **Range** set in Standard options. A tile with no range set stays in the default color.

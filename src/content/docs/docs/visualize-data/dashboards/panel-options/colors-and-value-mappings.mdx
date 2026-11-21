@@ -16,6 +16,7 @@ A color scheme decides how a panel colors its series and values. A value mapping
 | **Single color** | Draws every value in one color, picked with the swatch. |
 | **From thresholds** | Colors each value by the [threshold](../thresholds/) step it reaches. On a TimeSeries panel, each line takes the color of its last value. |
 | **Default palette**, **Palette 2**, **Palette 3** | Gives each series or tile its own color from the palette. On a Table panel, each distinct value in a column gets its own color, which suits a **Chip** column of statuses. |
+| **Blues**, **Greens**, **Oranges**, **Purples**, **Reds**, **Viridis**, **Magma**, **Green-yellow-red** | Stats, Gauge, and Table panels only, under **By value**. Colors each value by where it sits between the lowest and highest value: a Stats panel uses its **Threshold range**, a Gauge its range, and a Table column its own values or its **Range**. **Green-yellow-red** runs from green at the low end to red at the high end, for values where high is bad, such as CPU or latency. A value with no range to place it in takes its threshold color. |
 
 On a Table panel, the column's **Cell type** under **Cell options** decides where the color lands: **Colored text**, **Colored background**, and **Chip** all take the column's color.
 
@@ -24,7 +25,8 @@ When more than one source could color a value, the most specific one wins:
 1. A value mapping's color.
 2. **Single color**.
 3. A palette.
-4. Thresholds. These color a value when the field has no other color scheme.
+4. A color ramp.
+5. Thresholds. These color a value when the field has no other color scheme.
 
 To give one series a fixed color while the rest keep the palette, add an [override](../overrides/#give-one-series-a-fixed-color) that sets **Color scheme** to **Single color** for that series.
 
